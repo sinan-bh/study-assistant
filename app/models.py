@@ -14,7 +14,10 @@ class User(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
     reminder_song_filename = db.Column(db.String(256))
-    reminder_song_seconds = db.Column(db.Integer, default=10)  # Add this line
+    reminder_song_seconds = db.Column(db.Integer, default=10)
+    # Lunch break settings
+    break_duration_minutes = db.Column(db.Integer, default=30)
+    lunch_break_until = db.Column(db.DateTime)
     
     # Relationships
     subjects = db.relationship('Subject', backref='user', lazy='dynamic', cascade='all, delete-orphan')

@@ -1,4 +1,4 @@
-from flask import render_template, flash, redirect, url_for, request, jsonify, send_from_directory, current_app
+from flask import render_template, redirect, url_for, request, jsonify, send_from_directory, current_app
 from flask_login import current_user, login_required
 from app import db
 from app.main import bp
@@ -16,6 +16,11 @@ def index():
 @bp.route('/dashboard')
 @login_required
 def dashboard():
+    # Clear expired break lazily
+    if current_user.lunch_break_until and current_user.lunch_break_until <= datetime.utcnow():
+        current_user.lunch_break_until = None
+        db.session.commit()
+
     subjects = Subject.query.filter_by(user_id=current_user.id, is_active=True).all()
     recent_sessions = StudySession.query.filter_by(user_id=current_user.id)\
         .order_by(StudySession.start_time.desc()).limit(5).all()
@@ -52,7 +57,10 @@ def dashboard():
                          pending_subjects_count=pending_subjects_count,
                          current_hour=current_hour,
                          current_minute=current_minute,
-                         finished_subject_ids=finished_subject_ids)
+                         finished_subject_ids=finished_subject_ids,
+                         is_on_break=bool(current_user.lunch_break_until and current_user.lunch_break_until > datetime.utcnow()),
+                         break_remaining_seconds=max(int((current_user.lunch_break_until - datetime.utcnow()).total_seconds()), 0) if current_user.lunch_break_until else 0,
+                         break_duration_minutes=current_user.break_duration_minutes or 30)
 
 @bp.route('/profile')
 @login_required
@@ -64,49 +72,17 @@ def profile():
 def settings():
     return render_template('main/settings.html', title='Settings')
 
-# create task route
-@bp.route('/create_task', methods=['GET', 'POST'])
-@login_required
-def create_task():
-    if request.method == 'POST':
-        subject_name = request.form.get('subject')
-        task_description = request.form.get('description')
-        estimated_duration = request.form.get('estimated_duration')
-
-        if not subject_name or not task_description or not estimated_duration:
-            flash('All fields are required!', 'danger')
-            return redirect(url_for('main.create_task'))
-
-        subject = Subject.query.filter_by(name=subject_name, user_id=current_user.id).first()
-        if not subject:
-            flash('Subject not found!', 'danger')
-            return redirect(url_for('main.create_task'))
-
-        try:
-            estimated_duration = int(estimated_duration)
-        except ValueError:
-            flash('Estimated duration must be a number!', 'danger')
-            return redirect(url_for('main.create_task'))
-
-        new_session = StudySession(
-            user_id=current_user.id,
-            subject_id=subject.id,
-            description=task_description,
-            estimated_duration_minutes=estimated_duration
-        )
-        db.session.add(new_session)
-        db.session.commit()
-        flash('New study task created!', 'success')
-        return redirect(url_for('main.dashboard'))
-
-    subjects = Subject.query.filter_by(user_id=current_user.id, is_active=True).all()
-    return render_template('main/create_task.html', title='Create Task', subjects=subjects)
+## Removed broken create_task route (used undefined fields and missing template)
 
 @bp.route('/add_subject', methods=['POST'])
 @login_required
 def add_subject():
     data = request.get_json(silent=True) or {}
     sub_name = data.get('name')
+
+    # Block adding subjects while on break
+    if current_user.lunch_break_until and current_user.lunch_break_until > datetime.utcnow():
+        return jsonify({'success': False, 'error': 'on_break'}), 423
 
     def parse_24_from_12(h12_val, ampm_val):
         try:
@@ -244,6 +220,39 @@ def get_reminder_song():
     upload_folder = os.path.join(current_app.root_path, 'static', 'reminder_songs')
     return send_from_directory(upload_folder, current_user.reminder_song_filename)
 
+@bp.route('/settings/break', methods=['POST'])
+@login_required
+def set_break_duration():
+    data = request.get_json(silent=True) or {}
+    minutes = data.get('break_duration_minutes')
+    try:
+        minutes = int(minutes)
+    except (TypeError, ValueError):
+        minutes = None
+    if minutes is None or minutes not in (15, 20, 25, 30, 45, 60, 90):
+        return jsonify({'success': False, 'error': 'invalid_minutes'}), 400
+    current_user.break_duration_minutes = minutes
+    db.session.commit()
+    return jsonify({'success': True, 'break_duration_minutes': minutes})
+
+@bp.route('/break/toggle', methods=['POST'])
+@login_required
+def toggle_break():
+    data = request.get_json(silent=True) or {}
+    turn_on = data.get('on')
+    now = datetime.utcnow()
+    if bool(turn_on):
+        minutes = current_user.break_duration_minutes or 30
+        current_user.lunch_break_until = now + timedelta(minutes=minutes)
+    else:
+        current_user.lunch_break_until = None
+    db.session.commit()
+    return jsonify({
+        'success': True,
+        'is_on_break': bool(current_user.lunch_break_until and current_user.lunch_break_until > datetime.utcnow()),
+        'until': current_user.lunch_break_until.isoformat() + 'Z' if current_user.lunch_break_until else None
+    })
+
 
 @bp.route('/delete_subject/<int:subject_id>', methods=['POST'])
 @login_required
@@ -299,7 +308,6 @@ def complete_subject(subject_id):
         return jsonify({'success': False, 'error': 'Subject not found'}), 404
     now = datetime.utcnow()
     # Persist finish timestamp on Subject
-    print(f"Completing subject {subject_id} at {now}")
     subject.finished_at = now
     # If there's an open session for this subject today without end_time, close it; else log completion stamp
     open_session = StudySession.query.filter(

@@ -2,7 +2,7 @@
 <div class="max-w-lg mx-auto mt-12 bg-white rounded-lg shadow-lg p-8">
   <div>
     <h1 class="text-2xl font-bold text-gray-900 mb-6">
-      <i class="fas fa-music mr-2 text-blue-600"></i>Reminder Song Settings
+      <i class="fas fa-cog mr-2 text-blue-600"></i>Settings
     </h1>
     <form id="reminderSongForm" enctype="multipart/form-data">
       <div class="mb-4">
@@ -44,6 +44,23 @@
       </div>
       {% endif %}
     </form>
+
+    <hr class="my-8">
+
+    <h2 class="text-xl font-semibold text-gray-900 mb-4"><i class="fas fa-utensils mr-2 text-blue-600"></i>Lunch Break</h2>
+    <form id="breakForm">
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Break Duration</label>
+        <select name="break_duration_minutes" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+          {% set options = [1,15,30,45,60,90,120] %}
+          {% for opt in options %}
+            <option value="{{ opt }}" {% if (current_user.break_duration_minutes or 30) == opt %}selected{% endif %}>{{ opt }} minutes</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Save Break</button>
+      <div id="breakStatus" class="mt-2 text-sm"></div>
+    </form>
     <script>
       document.getElementById("reminderSongForm").onsubmit = async function (
         e
@@ -65,6 +82,24 @@
             "Save failed: " + (result.error || "Unknown error");
         }
       };
+
+      document.getElementById('breakForm').onsubmit = async function(e) {
+        e.preventDefault();
+        const form = e.target;
+        const minutes = form.break_duration_minutes.value;
+        const res = await fetch('{{ url_for("main.set_break_duration") }}', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ break_duration_minutes: minutes })
+        });
+        const result = await res.json();
+        const statusDiv = document.getElementById('breakStatus');
+        if (result.success) {
+          statusDiv.textContent = 'Break duration saved!';
+        } else {
+          statusDiv.textContent = 'Save failed: ' + (result.error || 'Unknown error');
+        }
+      }
     </script>
   </div>
   {% endblock %}

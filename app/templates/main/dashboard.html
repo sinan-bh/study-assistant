@@ -65,6 +65,28 @@
     
   </div>
 
+  <!-- Break Toggle -->
+  <div class="mb-6">
+    <div class="bg-white rounded-lg shadow p-4 flex items-center justify-between">
+      <div>
+        <div class="font-semibold text-gray-900">Lunch Break</div>
+        <div id="breakStatusText" class="text-sm text-gray-600">
+          {% if is_on_break %}
+            On break — ends in <span id="breakCountdown"></span>
+          {% else %}
+            Not on break (default {{ break_duration_minutes }} minutes)
+          {% endif %}
+        </div>
+      </div>
+      <label class="inline-flex items-center cursor-pointer">
+        <input type="checkbox" id="breakToggle" class="sr-only" {% if is_on_break %}checked{% endif %}>
+        <span class="relative inline-block w-12 h-6 bg-gray-300 rounded-full transition-all">
+          <span id="breakKnob" class="absolute left-0 top-0 w-6 h-6 bg-white rounded-full shadow transform transition-transform {% if is_on_break %}translate-x-6{% endif %}"></span>
+        </span>
+      </label>
+    </div>
+  </div>
+
   <!-- Main Content Grid -->
   <div class="flex flex-col gap-8 mb-8">
     <!-- Subjects Section -->
@@ -336,6 +358,71 @@
       checkReminder(); // on page load
     }
 
+    // Break toggle logic
+    const breakToggle = document.getElementById('breakToggle');
+    const breakKnob = document.getElementById('breakKnob');
+    const breakStatusText = document.getElementById('breakStatusText');
+    let countdownTimer = null;
+
+    async function setBreak(on) {
+      const res = await fetch('/break/toggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ on })
+      });
+      const result = await res.json();
+      if (!result.success) return;
+      updateBreakUI(result.is_on_break, result.until);
+    }
+
+    function updateBreakUI(isOn, untilIso) {
+      // visual toggle
+      if (isOn) {
+        breakKnob.classList.add('translate-x-6');
+      } else {
+        breakKnob.classList.remove('translate-x-6');
+      }
+      // countdown
+      if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+      const countdownSpan = document.getElementById('breakCountdown');
+      if (isOn && untilIso && countdownSpan) {
+        function tick() {
+          const now = new Date();
+          const until = new Date(untilIso);
+          let diff = Math.max(0, Math.floor((until - now) / 1000));
+          const m = Math.floor(diff / 60);
+          const s = diff % 60;
+          countdownSpan.textContent = `${m}m ${s}s`;
+          if (diff <= 0) {
+            clearInterval(countdownTimer);
+            countdownTimer = null;
+            breakToggle.checked = false;
+            updateBreakUI(false);
+          }
+        }
+        tick();
+        countdownTimer = setInterval(tick, 1000);
+        breakStatusText.innerHTML = 'On break — ends in <span id="breakCountdown"></span>';
+      } else {
+        breakStatusText.textContent = `Not on break (default ${parseInt('{{ break_duration_minutes }}', 10)} minutes)`;
+      }
+    }
+
+    if (breakToggle) {
+      breakToggle.addEventListener('change', function() {
+        setBreak(this.checked);
+        const btn = document.getElementById('openAddSubject');
+        if (btn) btn.disabled = this.checked;
+        if (btn) btn.classList.toggle('opacity-50', this.checked);
+        if (btn) btn.classList.toggle('cursor-not-allowed', this.checked);
+      });
+      // Initialize disabled state
+      const initBtn = document.getElementById('openAddSubject');
+      {% if is_on_break %}
+      if (initBtn) { initBtn.disabled = true; initBtn.classList.add('opacity-50','cursor-not-allowed'); }
+      {% endif %}
+    }
+
     // AJAX form submit
     document.getElementById('addSubjectForm').onsubmit = async function (e) {
       e.preventDefault()
@@ -372,7 +459,11 @@
         document.getElementById('addSubjectModal').classList.add('hidden')
         location.reload() // Reload to show new subject
       } else {
-        alert('Failed to add subject')
+        if (res.status === 423) {
+          alert('You are on lunch break. Turn it off to add a subject.')
+        } else {
+          alert('Failed to add subject')
+        }
       }
     }
     
