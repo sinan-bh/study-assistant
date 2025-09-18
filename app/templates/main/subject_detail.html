@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto mt-8 bg-white rounded-lg shadow-lg p-6">
+  <div class="flex justify-between items-center mb-6">
+    <h2 class="text-2xl font-bold text-gray-900">
+      <span style="border-left: 8px solid {{ subject.color }}; padding-left: 12px;">
+        {{ subject.name }}
+      </span>
+    </h2>
+    <button id="editSubjectBtn" class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded text-sm">Edit Subject</button>
+  </div>
+  <p class="mb-4 text-gray-700">{{ subject.description or 'No description.' }}</p>
+  <p class="mb-6 text-gray-500">Daily Study Time: {{ subject.daily_time_minutes }} min</p>
+
+  <div class="mb-6">
+    <h3 class="text-lg font-semibold mb-2">Topics</h3>
+    <form id="addTopicForm" class="flex space-x-2 mb-4">
+      <input type="text" name="name" placeholder="Topic name" class="border rounded px-3 py-2 flex-1" required>
+      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Add Topic</button>
+    </form>
+    <ul id="topicsList" class="divide-y divide-gray-200">
+      {% for topic in topics %}
+        <li class="py-2 flex justify-between items-center">
+          <span>{{ topic.name }}</span>
+          <span class="text-xs text-gray-400">{{ topic.estimated_time_minutes }} min</span>
+        </li>
+      {% else %}
+        <li class="py-2 text-gray-400">No topics yet.</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+
+<script>
+  // Add Topic AJAX
+  document.getElementById('addTopicForm').onsubmit = async function(e) {
+    e.preventDefault();
+    const form = e.target;
+    const data = { name: form.name.value };
+    const res = await fetch('{{ url_for("main.add_topic", subject_id=subject.id) }}', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data)
+    });
+    if (res.ok) {
+      location.reload();
+    } else {
+      alert('Failed to add topic');
+    }
+  };
+
+  // Edit Subject (simple redirect, you can make a modal for editing)
+  document.getElementById('editSubjectBtn').onclick = function() {
+    window.location.href = "{{ url_for('main.edit_subject', subject_id=subject.id) }}";
+  };
+</script>
+{% endblock %}

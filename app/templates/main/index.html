@@ -1,0 +1,333 @@
+{% extends 'base.html' %} {% block content %}
+<div id="root"></div>
+
+<!-- React via CDN for a lightweight SPA bootstrap -->
+<script
+  crossorigin
+  src="https://unpkg.com/react@18/umd/react.development.js"
+></script>
+<script
+  crossorigin
+  src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"
+></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script type="text/babel">
+  const { useEffect, useState } = React;
+
+  function App() {
+    const [subjects, setSubjects] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [name, setName] = useState("");
+    const [startHour, setStartHour] = useState(8);
+    const [startMinute, setStartMinute] = useState(0);
+    const [endHour, setEndHour] = useState(9);
+    const [endMinute, setEndMinute] = useState(0);
+
+    async function load() {
+      setLoading(true);
+      const res = await fetch("/api/subjects");
+      if (res.ok) {
+        setSubjects(await res.json());
+      }
+      setLoading(false);
+    }
+
+    useEffect(() => {
+      load();
+    }, []);
+
+    async function createSubject(e) {
+      e.preventDefault();
+      const res = await fetch("/api/subjects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          start_hour: startHour,
+          start_minute: startMinute,
+          end_hour: endHour,
+          end_minute: endMinute,
+        }),
+      });
+      if (res.ok) {
+        setName("");
+        await load();
+      }
+    }
+
+    async function addTopic(subjectId, topicName, setTopicName) {
+      if (!topicName.trim()) return;
+      const res = await fetch(`/api/subjects/${subjectId}/topics`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: topicName }),
+      });
+      if (res.ok) {
+        setTopicName("");
+        await load();
+      }
+    }
+
+    async function deleteSubject(id) {
+      if (!confirm("Delete this subject?")) return;
+      const res = await fetch(`/api/subjects/${id}`, { method: "DELETE" });
+      if (res.ok) await load();
+    }
+
+    async function deleteTopic(id) {
+      if (!confirm("Delete this topic?")) return;
+      const res = await fetch(`/api/topics/${id}`, { method: "DELETE" });
+      if (res.ok) await load();
+    }
+
+    if (loading) return <div>Loading...</div>;
+
+    return (
+      <div className="p-4 space-y-6">
+        <form onSubmit={createSubject} className="space-x-2">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Subject name"
+            required
+          />
+          <select
+            value={startHour}
+            onChange={(e) => setStartHour(parseInt(e.target.value))}
+          >
+            {Array.from({ length: 24 }, (_, i) => (
+              <option key={i} value={i}>
+                {String(i).padStart(2, "0")}
+              </option>
+            ))}
+          </select>
+          <select
+            value={startMinute}
+            onChange={(e) => setStartMinute(parseInt(e.target.value))}
+          >
+            {Array.from({ length: 12 }, (_, i) => i * 5).map((m) => (
+              <option key={m} value={m}>
+                {String(m).padStart(2, "0")}
+              </option>
+            ))}
+          </select>
+          <select
+            value={endHour}
+            onChange={(e) => setEndHour(parseInt(e.target.value))}
+          >
+            {Array.from({ length: 24 }, (_, i) => (
+              <option key={i} value={i}>
+                {String(i).padStart(2, "0")}
+              </option>
+            ))}
+          </select>
+          <select
+            value={endMinute}
+            onChange={(e) => setEndMinute(parseInt(e.target.value))}
+          >
+            {Array.from({ length: 12 }, (_, i) => i * 5).map((m) => (
+              <option key={m} value={m}>
+                {String(m).padStart(2, "0")}
+              </option>
+            ))}
+          </select>
+          <button type="submit">Create Subject</button>
+        </form>
+
+        {subjects.map((sub) => (
+          <SubjectItem
+            key={sub.id}
+            sub={sub}
+            onDelete={deleteSubject}
+            onDeleteTopic={deleteTopic}
+            onAddTopic={addTopic}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  function SubjectItem({ sub, onDelete, onDeleteTopic, onAddTopic }) {
+    const [open, setOpen] = useState(false);
+    const [topicName, setTopicName] = useState("");
+    return (
+      <div className="border-b py-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <button onClick={() => setOpen(!open)}>{open ? "▼" : "▶"}</button>
+            <strong>{sub.name}</strong>
+            <span className="text-sm text-gray-500">
+              ({String(sub.start_hour).padStart(2, "0")}:
+              {String(sub.start_minute).padStart(2, "0")} -{" "}
+              {String(sub.end_hour).padStart(2, "0")}:
+              {String(sub.end_minute).padStart(2, "0")})
+            </span>
+          </div>
+          <div className="space-x-2">
+            <button onClick={() => onDelete(sub.id)}>Delete</button>
+          </div>
+        </div>
+        {open && (
+          <div className="ml-6 mt-2">
+            <ul className="space-y-1">
+              {sub.topics.map((t) => (
+                <li key={t.id} className="flex items-center justify-between">
+                  <span>{t.name}</span>
+                  <button onClick={() => onDeleteTopic(t.id)}>Delete</button>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-2 space-x-2">
+              <input
+                value={topicName}
+                onChange={(e) => setTopicName(e.target.value)}
+                placeholder="Add a topic"
+              />
+              <button
+                onClick={() => onAddTopic(sub.id, topicName, setTopicName)}
+              >
+                Add
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const root = ReactDOM.createRoot(document.getElementById("root"));
+  root.render(<App />);
+</script>
+{% endblock %} {% extends 'base.html' %} {% block content %}
+<!-- Hero Section -->
+<div class="text-center py-16">
+  <div class="max-w-4xl mx-auto">
+    <h1 class="text-5xl font-bold text-gray-900 mb-6">
+      <i class="fas fa-graduation-cap mr-4 text-blue-600"></i>Study Assistant
+    </h1>
+    <p class="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
+      Your smart personal assistant for effective studying. Plan your study
+      time, get reminders, and track your progress with intelligent
+      recommendations.
+    </p>
+
+    {% if not current_user.is_authenticated %}
+    <div class="flex flex-col sm:flex-row gap-4 justify-center">
+      <a
+        href="{{ url_for('auth.register') }}"
+        class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg text-lg transition duration-200"
+      >
+        <i class="fas fa-user-plus mr-2"></i>Get Started
+      </a>
+      <a
+        href="{{ url_for('auth.login') }}"
+        class="border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white font-semibold py-3 px-8 rounded-lg text-lg transition duration-200"
+      >
+        <i class="fas fa-sign-in-alt mr-2"></i>Sign In
+      </a>
+    </div>
+    {% else %}
+    <div class="flex justify-center">
+      <a
+        href="{{ url_for('main.dashboard') }}"
+        class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg text-lg transition duration-200"
+      >
+        <i class="fas fa-tachometer-alt mr-2"></i>Go to Dashboard
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Features Section -->
+<div class="py-16 bg-white">
+  <div class="max-w-6xl mx-auto">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <!-- Smart Planning -->
+      <div
+        class="bg-white rounded-lg shadow-lg p-8 text-center hover:shadow-xl transition duration-300"
+      >
+        <div class="mb-6">
+          <i class="fas fa-calendar-alt text-5xl text-blue-600"></i>
+        </div>
+        <h3 class="text-xl font-semibold text-gray-900 mb-4">Smart Planning</h3>
+        <p class="text-gray-600">
+          Automatically plan your study time for each subject and topic. Set
+          daily goals and let the system create your optimal schedule.
+        </p>
+      </div>
+
+      <!-- Smart Reminders -->
+      <div
+        class="bg-white rounded-lg shadow-lg p-8 text-center hover:shadow-xl transition duration-300"
+      >
+        <div class="mb-6">
+          <i class="fas fa-bell text-5xl text-blue-600"></i>
+        </div>
+        <h3 class="text-xl font-semibold text-gray-900 mb-4">
+          Smart Reminders
+        </h3>
+        <p class="text-gray-600">
+          Get timely reminders for study sessions, meals, sleep, and other
+          important activities to maintain a healthy study-life balance.
+        </p>
+      </div>
+
+      <!-- Progress Tracking -->
+      <div
+        class="bg-white rounded-lg shadow-lg p-8 text-center hover:shadow-xl transition duration-300"
+      >
+        <div class="mb-6">
+          <i class="fas fa-chart-line text-5xl text-blue-600"></i>
+        </div>
+        <h3 class="text-xl font-semibold text-gray-900 mb-4">
+          Progress Tracking
+        </h3>
+        <p class="text-gray-600">
+          Track your study time and performance. Get personalized
+          recommendations to improve your study habits and optimize your
+          learning.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Additional Features -->
+<div class="py-16 bg-gray-50">
+  <div class="max-w-6xl mx-auto">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <!-- Exam Mode -->
+      <div
+        class="bg-white rounded-lg shadow-lg p-8 text-center hover:shadow-xl transition duration-300"
+      >
+        <div class="mb-6">
+          <i class="fas fa-exam text-5xl text-blue-600"></i>
+        </div>
+        <h3 class="text-xl font-semibold text-gray-900 mb-4">Exam Mode</h3>
+        <p class="text-gray-600">
+          Switch to exam mode when preparing for tests. The system focuses
+          exclusively on the subject you're about to be tested on.
+        </p>
+      </div>
+
+      <!-- Smart Recommendations -->
+      <div
+        class="bg-white rounded-lg shadow-lg p-8 text-center hover:shadow-xl transition duration-300"
+      >
+        <div class="mb-6">
+          <i class="fas fa-lightbulb text-5xl text-blue-600"></i>
+        </div>
+        <h3 class="text-xl font-semibold text-gray-900 mb-4">
+          Smart Recommendations
+        </h3>
+        <p class="text-gray-600">
+          Get AI-powered advice based on your study patterns. Learn which topics
+          need more attention and discover effective study techniques.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

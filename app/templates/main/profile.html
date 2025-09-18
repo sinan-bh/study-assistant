@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <div class="max-w-4xl mx-auto">
+    <div class="bg-white rounded-lg shadow-lg">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h1 class="text-2xl font-bold text-gray-900">
+          <i class="fas fa-user mr-2 text-blue-600"></i>Profile
+        </h1>
+      </div>
+      <div class="p-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <!-- Profile Picture and Basic Info -->
+          <div class="text-center">
+            <div class="mb-6">
+              <div class="bg-blue-600 rounded-full w-32 h-32 flex items-center justify-center mx-auto">
+                <i class="fas fa-user text-white text-5xl"></i>
+              </div>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">{{ current_user.first_name }} {{ current_user.last_name }}</h2>
+            <p class="text-gray-600">@{{ current_user.username }}</p>
+          </div>
+
+          <!-- Account Information -->
+          <div class="md:col-span-2">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Account Information</h3>
+            <div class="space-y-4">
+              <div class="flex justify-between items-center py-3 border-b border-gray-200">
+                <span class="font-medium text-gray-700">Email:</span>
+                <span class="text-gray-900">{{ current_user.email }}</span>
+              </div>
+              <div class="flex justify-between items-center py-3 border-b border-gray-200">
+                <span class="font-medium text-gray-700">Member since:</span>
+                <span class="text-gray-900">{{ current_user.created_at.strftime('%B %d, %Y') }}</span>
+              </div>
+              <div class="flex justify-between items-center py-3">
+                <span class="font-medium text-gray-700">Status:</span>
+                <span class="{% if current_user.is_active %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %} px-3 py-1 rounded-full text-sm font-medium">
+                  {% if current_user.is_active %}Active{% else %}Inactive{% endif %}
+                </span>
+              </div>
+            </div>
+
+            <div class="mt-8 flex flex-col sm:flex-row gap-4">
+              <button class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition duration-200">
+                <i class="fas fa-edit mr-2"></i>Edit Profile
+              </button>
+              <button class="border border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-2 rounded-lg font-medium transition duration-200">
+                <i class="fas fa-key mr-2"></i>Change Password
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
