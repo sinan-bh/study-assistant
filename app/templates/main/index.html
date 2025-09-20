@@ -14,7 +14,7 @@
     {% if not current_user.is_authenticated %}
     <div class="flex flex-col sm:flex-row gap-4 justify-center">
       <a
-        href="{{ url_for('auth.register') }}"
+        href="{{ url_for('auth.login') }}"
         class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg text-lg transition duration-200"
       >
         <i class="fas fa-user-plus mr-2"></i>Get Started
