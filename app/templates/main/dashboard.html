@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+  {% extends 'base.html' %}
 
 {% block content %}
   <!-- Header -->
@@ -14,7 +14,7 @@
     <div class="bg-green-600 text-white rounded-lg shadow-lg p-6">
       <div class="flex justify-between items-center">
         <div>
-          <p class="text-green-100 text-sm font-medium">Active Subjects</p>
+          <p class="text-green-100 text-sm font-medium">Activities</p>
           <p class="text-3xl font-bold">{{ active_subjects_count }}</p>
         </div>
         <div class="bg-green-500 rounded-full p-3">
@@ -27,7 +27,7 @@
     <div class="bg-purple-500 text-white rounded-lg shadow-lg p-6">
       <div class="flex justify-between items-center">
         <div>
-          <p class="text-purple-100 text-sm font-medium">Completed Subjects</p>
+          <p class="text-purple-100 text-sm font-medium">Completed Activities</p>
           <p class="text-3xl font-bold">{{ completed_subjects_count }}</p>
         </div>
         <div class="bg-purple-400 rounded-full p-3">
@@ -40,7 +40,7 @@
     <div class="bg-yellow-500 text-white rounded-lg shadow-lg p-6">
       <div class="flex justify-between items-center">
         <div>
-          <p class="text-yellow-100 text-sm font-medium">Pending Subjects</p>
+          <p class="text-yellow-100 text-sm font-medium">Pending Activities</p>
           <p class="text-3xl font-bold">{{ pending_subjects_count }}</p>
         </div>
         <div class="bg-yellow-400 rounded-full p-3">
@@ -53,7 +53,7 @@
     <div class="bg-blue-600 text-white rounded-lg shadow-lg p-6">
       <div class="flex justify-between items-center">
         <div>
-          <p class="text-blue-100 text-sm font-medium">Today's Total Study Time</p>
+          <p class="text-blue-100 text-sm font-medium">Today's Total Activity Time</p>
           <p class="text-3xl font-bold">{{ total_scheduled_minutes }} min</p>
         </div>
         <div class="bg-blue-500 rounded-full p-3">
@@ -66,7 +66,7 @@
   </div>
 
   <!-- Break Toggle -->
-  <div class="mb-6">
+  <!-- <div class="mb-6">
     <div class="bg-white rounded-lg shadow p-4 flex items-center justify-between">
       <div>
         <div class="font-semibold text-gray-900">Lunch Break</div>
@@ -85,16 +85,16 @@
         </span>
       </label>
     </div>
-  </div>
+  </div> -->
 
   <!-- Main Content Grid -->
   <div class="flex flex-col gap-8 mb-8">
     <!-- Subjects Section -->
     <div class="bg-white rounded-lg shadow-lg p-6">
       <div class="flex items-center justify-between mb-4">
-        <h2 class="text-xl font-semibold text-gray-900">My Subjects</h2>
+        <h2 class="text-xl font-semibold text-gray-900">My Activity</h2>
         <button id="openAddSubject" class="bg-green-600 text-white px-3 py-2 rounded text-sm hover:bg-green-700">
-          <i class="fas fa-plus mr-1"></i>Create Subject
+          <i class="fas fa-plus mr-1"></i>Create Activity
         </button>
       </div>
       <div class="space-y-4">
