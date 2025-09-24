@@ -47,9 +47,6 @@ def create_subject():
         user_id=current_user.id,
         is_active=True,
     )
-    # Update datetime fields based on hour and minute values
-    s.update_datetime_fields()
-    
     db.session.add(s)
     db.session.commit()
     return jsonify(subject_to_dict(s)), 201

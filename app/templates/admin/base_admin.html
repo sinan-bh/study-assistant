@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <div class="flex">
+    <!-- Admin Sidebar -->
+    <div class="w-64 bg-gray-800 min-h-screen p-4">
+      <h2 class="text-white text-xl font-bold mb-6">Admin Panel</h2>
+      <ul class="space-y-2">
+        <li>
+          <a href="{{ url_for('admin.dashboard') }}" class="flex items-center text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md">
+            <i class="fas fa-tachometer-alt mr-3"></i>
+            <span>Dashboard</span>
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('admin.users') }}" class="flex items-center text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md">
+            <i class="fas fa-users mr-3"></i>
+            <span>Users</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-1 p-8">
+      <div class="bg-white shadow-md rounded-lg p-6">
+        {% block admin_content %}
+        {% endblock %}
+      </div>
+    </div>
+  </div>
+{% endblock %}

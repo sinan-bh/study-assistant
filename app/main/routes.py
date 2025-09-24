@@ -189,20 +189,6 @@ def edit_subject(subject_id):
     subject = Subject.query.filter_by(id=subject_id, user_id=current_user.id).first_or_404()
     data = request.get_json()
     subject.name = data.get('name', subject.name)
-    
-    # Update hour and minute fields if provided
-    if 'start_hour' in data:
-        subject.start_hour = data.get('start_hour')
-    if 'start_minute' in data:
-        subject.start_minute = data.get('start_minute')
-    if 'end_hour' in data:
-        subject.end_hour = data.get('end_hour')
-    if 'end_minute' in data:
-        subject.end_minute = data.get('end_minute')
-    
-    # Update datetime fields based on hour and minute values
-    subject.update_datetime_fields()
-    
     db.session.commit()
     return jsonify({'success': True})
 
