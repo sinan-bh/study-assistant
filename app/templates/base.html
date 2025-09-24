@@ -39,24 +39,7 @@
           </div>
 
           <div class="hidden md:flex items-center space-x-4">
-            {% if request.path.startswith('/admin') %}
-              <!-- Admin Navigation -->
-              <a href="{{ url_for('admin.dashboard') }}" class="text-white hover:text-blue-200 px-3 py-2 rounded-md text-sm font-medium"><i class="fas fa-tachometer-alt mr-1"></i>Admin Dashboard</a>
-            <a href="{{ url_for('admin.users') }}" class="text-white hover:text-blue-200 px-3 py-2 rounded-md text-sm font-medium"><i class="fas fa-users mr-1"></i>Manage Users</a>
-              
-              <div class="relative">
-                <button class="text-white hover:text-blue-200 px-3 py-2 rounded-md text-sm font-medium flex items-center" onclick="toggleDropdown()">
-                  <i class="fas fa-user-shield mr-1"></i>Admin
-                  <i class="fas fa-chevron-down ml-1"></i>
-                </button>
-                <div id="userDropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
-                  <a href="{{ url_for('main.index') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"><i class="fas fa-home mr-2"></i>Main Site</a>
-                  <hr class="my-1" />
-                  <a href="{{ url_for('auth.logout') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"><i class="fas fa-sign-out-alt mr-2"></i>Logout</a>
-                </div>
-              </div>
-            {% elif current_user.is_authenticated %}
-              <!-- User Navigation -->
+            {% if current_user.is_authenticated %}
               <a href="{{ url_for('main.dashboard') }}" class="text-white hover:text-blue-200 px-3 py-2 rounded-md text-sm font-medium"><i class="fas fa-tachometer-alt mr-1"></i>Dashboard</a>
               <a href="{{ url_for('main.profile') }}" class="text-white hover:text-blue-200 px-3 py-2 rounded-md text-sm font-medium"><i class="fas fa-user mr-1"></i>Profile</a>
               <a href="{{ url_for('main.settings') }}" class="text-white hover:text-blue-200 px-3 py-2 rounded-md text-sm font-medium"><i class="fas fa-cog mr-1"></i>Settings</a>
@@ -89,14 +72,7 @@
       <!-- Mobile menu -->
       <div id="mobileMenu" class="hidden md:hidden bg-blue-700">
         <div class="px-2 pt-2 pb-3 space-y-1">
-          {% if request.path.startswith('/admin') %}
-            <!-- Admin Mobile Navigation -->
-            <a href="{{ url_for('admin.dashboard') }}" class="text-white hover:text-blue-200 block px-3 py-2 rounded-md text-base font-medium"><i class="fas fa-tachometer-alt mr-2"></i>Admin Dashboard</a>
-            <a href="{{ url_for('admin.users') }}" class="text-white hover:text-blue-200 block px-3 py-2 rounded-md text-base font-medium"><i class="fas fa-users mr-2"></i>Manage Users</a>
-            <a href="{{ url_for('main.index') }}" class="text-white hover:text-blue-200 block px-3 py-2 rounded-md text-base font-medium"><i class="fas fa-home mr-2"></i>Main Site</a>
-            <a href="{{ url_for('auth.logout') }}" class="text-white hover:text-blue-200 block px-3 py-2 rounded-md text-base font-medium"><i class="fas fa-sign-out-alt mr-2"></i>Logout</a>
-          {% elif current_user.is_authenticated %}
-            <!-- User Mobile Navigation -->
+          {% if current_user.is_authenticated %}
             <a href="{{ url_for('main.dashboard') }}" class="text-white hover:text-blue-200 block px-3 py-2 rounded-md text-base font-medium"><i class="fas fa-tachometer-alt mr-2"></i>Dashboard</a>
             <a href="{{ url_for('main.profile') }}" class="text-white hover:text-blue-200 block px-3 py-2 rounded-md text-base font-medium"><i class="fas fa-user mr-2"></i>Profile</a>
             <a href="{{ url_for('main.settings') }}" class="text-white hover:text-blue-200 block px-3 py-2 rounded-md text-base font-medium"><i class="fas fa-cog mr-2"></i>Settings</a>
@@ -161,6 +137,7 @@
         const dropdown = document.getElementById('userDropdown')
         dropdown.classList.toggle('hidden')
       }
+      
       function toggleMobileMenu() {
         const mobileMenu = document.getElementById('mobileMenu')
         mobileMenu.classList.toggle('hidden')
