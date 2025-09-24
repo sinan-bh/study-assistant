@@ -48,6 +48,12 @@ def create_app(config_name='default'):
     from app.api import bp as api_bp
     app.register_blueprint(api_bp)
     
+<<<<<<< HEAD
+=======
+    from app.admin import bp as admin_bp
+    app.register_blueprint(admin_bp, url_prefix='/admin')
+    
+>>>>>>> f0eae98948b434e56c314765f900c032ac83fd10
     # Set up user loader for Flask-Login
     from app.models import User
     

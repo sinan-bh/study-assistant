@@ -522,7 +522,11 @@
       
       // Use passPercentage if available, otherwise extract from message
       let percentage = passPercentage || 0;
+<<<<<<< HEAD
       if (!percentage && message) {
+=======
+      if (!percentage) {
+>>>>>>> f0eae98948b434e56c314765f900c032ac83fd10
         const percentMatch = message.match(/(\d+)%/);
         if (percentMatch && percentMatch[1]) {
           percentage = parseInt(percentMatch[1]);
@@ -535,6 +539,10 @@
       let statusTitle = '';
       
       if (passStatus === true) {
+<<<<<<< HEAD
+=======
+        statusTitle = 'PASS';
+>>>>>>> f0eae98948b434e56c314765f900c032ac83fd10
         if (percentage > 120) {
           statusColor = 'bg-green-600';
           statusIcon = 'fa-trophy';
@@ -549,6 +557,10 @@
           statusTitle = 'You passed just in time';
         }
       } else if (passStatus === false) {
+<<<<<<< HEAD
+=======
+        statusTitle = 'FAIL';
+>>>>>>> f0eae98948b434e56c314765f900c032ac83fd10
         if (percentage < 50) {
           statusColor = 'bg-red-600';
           statusIcon = 'fa-times-circle';

@@ -13,6 +13,7 @@ class User(UserMixin, db.Model):
     last_name = db.Column(db.String(64), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
+    is_admin = db.Column(db.Boolean, default=False)
     reminder_song_filename = db.Column(db.String(256))
     reminder_song_seconds = db.Column(db.Integer, default=10)
     # Lunch break settings

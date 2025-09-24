@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <div class="flex items-center justify-center min-h-screen bg-gray-100">
+    <div class="w-full max-w-md p-8 bg-white rounded-lg shadow-md">
+      <div class="text-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Admin Registration</h1>
+        <p class="text-gray-600">Create a new admin account</p>
+      </div>
+
+      <form method="POST" action="{{ url_for('auth.admin_register') }}">
+        {{ form.hidden_tag() }}
+
+        <div class="mb-4">
+          {{ form.username.label(class='block text-gray-700 text-sm font-bold mb-2') }}
+          {{ form.username(class='shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline') }}
+          {% for error in form.username.errors %}
+            <p class="text-red-500 text-xs italic">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="mb-4">
+          {{ form.email.label(class='block text-gray-700 text-sm font-bold mb-2') }}
+          {{ form.email(class='shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline') }}
+          {% for error in form.email.errors %}
+            <p class="text-red-500 text-xs italic">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="mb-4">
+          {{ form.first_name.label(class='block text-gray-700 text-sm font-bold mb-2') }}
+          {{ form.first_name(class='shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline') }}
+          {% for error in form.first_name.errors %}
+            <p class="text-red-500 text-xs italic">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="mb-4">
+          {{ form.last_name.label(class='block text-gray-700 text-sm font-bold mb-2') }}
+          {{ form.last_name(class='shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline') }}
+          {% for error in form.last_name.errors %}
+            <p class="text-red-500 text-xs italic">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="mb-4">
+          {{ form.password.label(class='block text-gray-700 text-sm font-bold mb-2') }}
+          {{ form.password(class='shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline') }}
+          {% for error in form.password.errors %}
+            <p class="text-red-500 text-xs italic">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="mb-4">
+          {{ form.password2.label(class='block text-gray-700 text-sm font-bold mb-2') }}
+          {{ form.password2(class='shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline') }}
+          {% for error in form.password2.errors %}
+            <p class="text-red-500 text-xs italic">{{ error }}</p>
+          {% endfor %}
+        </div>
+
+        <div class="mb-6">
+                {{ form.admin_code.label(class="block text-gray-700 text-sm font-bold mb-2") }}
+                {{ form.admin_code(class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline") }}
+                {% for error in form.admin_code.errors %}
+                    <p class="text-red-500 text-xs italic">{{ error }}</p>
+                {% endfor %}
+            </div>
+            
+            <div class="flex items-center justify-between">
+          {{ form.submit(class='bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline') }}
+          <a href="{{ url_for('auth.login') }}" class="inline-block align-baseline font-bold text-sm text-blue-500 hover:text-blue-800">Already have an account?</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}
