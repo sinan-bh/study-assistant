@@ -1,10 +1,10 @@
 from datetime import datetime
-from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from app import db, login_manager
 
 class User(UserMixin, db.Model):
+    __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), index=True, unique=True, nullable=False)
     email = db.Column(db.String(120), index=True, unique=True, nullable=False)
@@ -35,22 +35,46 @@ class User(UserMixin, db.Model):
         return f'<User {self.username}>'
 
 class Subject(db.Model):
+    __tablename__ = 'subjects'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
     color = db.Column(db.String(7), default='#007bff')  # Hex color for UI
     daily_time_minutes = db.Column(db.Integer, default=60)  # Default 1 hour per day
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
     start_hour = db.Column(db.Integer, default=8)
     start_minute = db.Column(db.Integer, default=0)
     end_hour = db.Column(db.Integer, default=9)
     end_minute = db.Column(db.Integer, default=0)
+    # DateTime versions of start and end times
+    start_time = db.Column(db.DateTime)
+    end_time = db.Column(db.DateTime)
     # Extra reminder scheduled time (UTC). When set, front-end will trigger reminder and then clear it
     extra_reminder_at = db.Column(db.DateTime)
     # Finished time (UTC) when user clicks Finish
     finished_at = db.Column(db.DateTime)
+    
+    @staticmethod
+    def _create_datetime_from_hour_minute(hour, minute):
+        """Create a datetime object from hour and minute values."""
+        if hour is None or minute is None:
+            return None
+        try:
+            # Create a datetime with today's date and the specified hour/minute
+            now = datetime.utcnow()
+            return datetime(now.year, now.month, now.day, int(hour), int(minute))
+        except (ValueError, TypeError):
+            return None
+            
+    def update_datetime_fields(self):
+        """Update the datetime fields based on hour and minute values."""
+        # Update start_time from start_hour and start_minute
+        self.start_time = self._create_datetime_from_hour_minute(self.start_hour, self.start_minute)
+        
+        # Update end_time from end_hour and end_minute
+        self.end_time = self._create_datetime_from_hour_minute(self.end_hour, self.end_minute)
 
     # Relationships
     topics = db.relationship('Topic', backref='subject', lazy='dynamic', cascade='all, delete-orphan')
@@ -82,12 +106,13 @@ class Subject(db.Model):
         return self._format_ampm(self.end_hour or 0, self.end_minute or 0)
 
 class Topic(db.Model):
+    __tablename__ = 'topics'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
     estimated_time_minutes = db.Column(db.Integer, default=30)
     difficulty_level = db.Column(db.Integer, default=1)  # 1-5 scale
-    subject_id = db.Column(db.Integer, db.ForeignKey('subject.id'), nullable=False)
+    subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
     
@@ -98,31 +123,74 @@ class Topic(db.Model):
         return f'<Topic {self.name}>'
 
 class StudySession(db.Model):
+    __tablename__ = 'study_sessions'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    subject_id = db.Column(db.Integer, db.ForeignKey('subject.id'), nullable=False)
-    topic_id = db.Column(db.Integer, db.ForeignKey('topic.id'), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=False)
+    topic_id = db.Column(db.Integer, db.ForeignKey('topics.id'), nullable=True)
     start_time = db.Column(db.DateTime, nullable=False)
     end_time = db.Column(db.DateTime)
     actual_duration_minutes = db.Column(db.Integer)
     notes = db.Column(db.Text)
     rating = db.Column(db.Integer)  # 1-5 scale for difficulty/understanding
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    completion_status = db.Column(db.String(20))  # 'early', 'on_time', 'late', 'very_late'
+    pass_status = db.Column(db.Boolean)  # True if passed, False if failed
+    pass_percentage = db.Column(db.Integer)  # Percentage of success (0-100)
+
+    def generate_recommendation(self, scheduled_end_time):
+        """Generate recommendation based on completion time and set completion status."""
+        now = datetime.utcnow()
+        
+        # Calculate time difference in minutes
+        if self.end_time and scheduled_end_time:
+            time_diff = (self.end_time - scheduled_end_time).total_seconds() / 60
+            
+            # Set completion status based on time difference
+            if time_diff <= -10:  # Finished 10+ minutes early
+                self.completion_status = 'early'
+                message = "Great job! You finished early."
+            elif time_diff <= 5:  # Finished on time or up to 5 minutes late
+                self.completion_status = 'on_time'
+                message = "Good job! You finished on time."
+            elif time_diff <= 15:  # Finished 5-15 minutes late
+                self.completion_status = 'late'
+                message = "You finished a bit late. Try to manage your time better next time."
+            else:  # Finished more than 15 minutes late
+                self.completion_status = 'very_late'
+                message = "You finished very late. Consider breaking down your study sessions into smaller chunks."
+            
+            # Set pass status based on time difference
+            if time_diff <= 0:  # Only pass if finished before or exactly at scheduled time
+                self.pass_status = True
+                # Calculate how early they finished as a percentage (100% = right on time, >100% = early)
+                time_ratio = max(0, 100 + min(100, (scheduled_end_time - self.end_time).total_seconds() / 60))
+                self.pass_percentage = int(min(100, time_ratio))
+                pass_message = f"You passed! Finished with {self.pass_percentage}% efficiency."
+            else:
+                self.pass_status = False
+                # Calculate how late they finished as a percentage (0% = way too late, higher = closer to on time)
+                time_ratio = max(0, 100 - min(100, (self.end_time - scheduled_end_time).total_seconds() / 60))
+                self.pass_percentage = int(time_ratio)
+                pass_message = f"You failed the subject. Completed {self.pass_percentage}% of the goal."
+            
+            return f"{message} {pass_message}"
+        
+        return "Session completed."
     
     def __repr__(self):
         return f'<StudySession {self.id}>'
+        
+    
 
 class ExamMode(db.Model):
+    __tablename__ = 'exam_modes'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    subject_id = db.Column(db.Integer, db.ForeignKey('subject.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=False)
     exam_date = db.Column(db.DateTime, nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def __repr__(self):
         return f'<ExamMode {self.id}>'
-
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
