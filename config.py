@@ -7,7 +7,7 @@ load_dotenv(os.path.join(basedir, '.env'))
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'sqlite:///' + os.path.join(basedir, 'study_assistant.db')
+        'sqlite:///' + os.path.join(basedir, 'instance', 'study_assistant.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,
