@@ -48,4 +48,11 @@ def create_app(config_name='default'):
     from app.api import bp as api_bp
     app.register_blueprint(api_bp)
     
+    # Set up user loader for Flask-Login
+    from app.models import User
+    
+    @login_manager.user_loader
+    def load_user(id):
+        return db.session.execute(db.select(User).filter_by(id=int(id))).scalar_one_or_none()
+    
     return app

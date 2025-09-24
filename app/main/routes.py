@@ -134,6 +134,9 @@ def add_subject():
         user_id=current_user.id,
         is_active=True
     )
+    # Update datetime fields based on hour and minute values
+    new_subject.update_datetime_fields()
+    
     try:
         db.session.add(new_subject)
         db.session.commit()
@@ -186,6 +189,20 @@ def edit_subject(subject_id):
     subject = Subject.query.filter_by(id=subject_id, user_id=current_user.id).first_or_404()
     data = request.get_json()
     subject.name = data.get('name', subject.name)
+    
+    # Update hour and minute fields if provided
+    if 'start_hour' in data:
+        subject.start_hour = data.get('start_hour')
+    if 'start_minute' in data:
+        subject.start_minute = data.get('start_minute')
+    if 'end_hour' in data:
+        subject.end_hour = data.get('end_hour')
+    if 'end_minute' in data:
+        subject.end_minute = data.get('end_minute')
+    
+    # Update datetime fields based on hour and minute values
+    subject.update_datetime_fields()
+    
     db.session.commit()
     return jsonify({'success': True})
 
@@ -309,6 +326,16 @@ def complete_subject(subject_id):
     now = datetime.utcnow()
     # Persist finish timestamp on Subject
     subject.finished_at = now
+    
+    # Calculate scheduled end time for recommendation
+    scheduled_end_time = None
+    if subject.end_hour is not None and subject.end_minute is not None:
+        today = datetime.utcnow().date()
+        scheduled_end_time = datetime.combine(today, datetime.min.time().replace(
+            hour=subject.end_hour, 
+            minute=subject.end_minute
+        ))
+    
     # If there's an open session for this subject today without end_time, close it; else log completion stamp
     open_session = StudySession.query.filter(
         StudySession.user_id == current_user.id,
@@ -316,14 +343,28 @@ def complete_subject(subject_id):
         StudySession.end_time.is_(None)
     ).order_by(StudySession.start_time.desc()).first()
     try:
+        recommendation = None
         if open_session:
             open_session.end_time = now
             if open_session.start_time:
                 elapsed = int((now - open_session.start_time).total_seconds() // 60)
                 open_session.actual_duration_minutes = max(elapsed, 0)
             open_session.notes = (open_session.notes or '') + ' finished'
+            
+            # Generate recommendation based on completion time
+            if scheduled_end_time:
+                recommendation = open_session.generate_recommendation(scheduled_end_time)
+            
             db.session.commit()
-            return jsonify({'success': True, 'completed_at': now.isoformat() + 'Z', 'closed_session': open_session.id})
+            return jsonify({
+                'success': True, 
+                'completed_at': now.isoformat() + 'Z', 
+                'closed_session': open_session.id,
+                'recommendation': recommendation,
+                'completion_status': open_session.completion_status,
+                'pass_status': open_session.pass_status,
+                'pass_percentage': open_session.pass_percentage
+            })
         else:
             # Create a completion stamp session
             session = StudySession(
@@ -334,9 +375,20 @@ def complete_subject(subject_id):
                 actual_duration_minutes=0,
                 notes='subject_finished'
             )
+            
+            # Generate recommendation based on completion time
+            if scheduled_end_time:
+                recommendation = session.generate_recommendation(scheduled_end_time)
+                
             db.session.add(session)
             db.session.commit()
-            return jsonify({'success': True, 'completed_at': now.isoformat() + 'Z', 'session_id': session.id})
+            return jsonify({
+                'success': True, 
+                'completed_at': now.isoformat() + 'Z', 
+                'session_id': session.id,
+                'recommendation': recommendation,
+                'completion_status': session.completion_status
+            })
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
