@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+  <div class="bg-white rounded-lg shadow-md p-6">
+    <h1 class="text-2xl font-bold mb-6">Quiz Results</h1>
+    
+    <div class="text-center mb-8">
+      <div class="text-5xl font-bold mb-2">{{ score }}%</div>
+      <p class="text-xl">You answered {{ correct_answers }} out of {{ total_questions }} questions correctly</p>
+    </div>
+    
+    <div class="flex justify-center mb-8">
+      <a href="{{ url_for('main.quizzes') }}" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded mr-4">
+        Try Another Quiz
+      </a>
+      <a href="{{ url_for('main.start_quiz', quiz_id=quiz.id) }}" class="bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-6 rounded">
+        Retry This Quiz
+      </a>
+    </div>
+    
+    <!-- Question Results -->
+    <div class="mt-8">
+      <h2 class="text-xl font-semibold mb-4">Question Review</h2>
+      
+      {% for result in results %}
+        <div class="border rounded-lg p-4 mb-4 {% if result.is_correct %}bg-green-50 border-green-200{% else %}bg-red-50 border-red-200{% endif %}">
+          <div class="flex items-start">
+            <div class="mr-3 mt-1">
+              {% if result.is_correct %}
+                <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-green-100 text-green-800">
+                  <i class="fas fa-check"></i>
+                </span>
+              {% else %}
+                <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-red-100 text-red-800">
+                  <i class="fas fa-times"></i>
+                </span>
+              {% endif %}
+            </div>
+            <div class="flex-1">
+              <p class="font-medium mb-2">{{ result.question.question_text }}</p>
+              
+              <div class="ml-4">
+                <p class="{% if result.is_correct %}text-green-700{% else %}text-red-700{% endif %}">
+                  Your answer: {{ result.selected_option.option_text }}
+                </p>
+                
+                {% if not result.is_correct %}
+                  <p class="text-green-700 mt-1">
+                    Correct answer: {{ result.correct_option.option_text }}
+                  </p>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

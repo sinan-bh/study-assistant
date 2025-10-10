@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+  <h1 class="text-3xl font-bold mb-6">Available Quizzes</h1>
+  
+  {% if quizzes %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {% for quiz in quizzes %}
+        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+          <div class="p-6">
+            <h2 class="text-xl font-semibold mb-2">{{ quiz.title }}</h2>
+            <p class="text-gray-600 mb-4">{{ quiz.description }}</p>
+            <div class="flex items-center text-sm text-gray-500 mb-4">
+              <span class="mr-4"><i class="fas fa-question-circle mr-1"></i> {{ quiz.questions.count() }} Questions</span>
+            </div>
+            <a href="{{ url_for('main.start_quiz', quiz_id=quiz.id) }}" 
+               class="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition-colors duration-300">
+              Start Quiz
+            </a>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="bg-white rounded-lg shadow-md p-6 text-center">
+      <p class="text-lg text-gray-600">No quizzes available at the moment.</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

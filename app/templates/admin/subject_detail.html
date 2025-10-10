@@ -1,0 +1,190 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block admin_content %}
+<div class="bg-white rounded-lg p-6">
+  <div class="flex justify-between items-center mb-6">
+    <h2 class="text-2xl font-bold text-gray-900">
+      <span style="border-left: 8px solid {{ subject.color }}; padding-left: 12px;">
+        {{ subject.name }}
+      </span>
+    </h2>
+    <button id="editSubjectBtn" class="bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded text-sm">Edit Subject</button>
+  </div>
+  <p class="mb-4 text-gray-700">{{ subject.description or 'No description.' }}</p>
+  <p class="mb-6 text-gray-500">Daily Study Time: {{ subject.daily_time_minutes }} min</p>
+
+  <div class="mb-6">
+    <h3 class="text-lg font-semibold mb-2">Topics</h3>
+    <form id="addTopicForm" class="flex space-x-2 mb-4">
+      <input type="text" name="name" placeholder="Topic name" class="border rounded px-3 py-2 flex-1" required>
+      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Add Topic</button>
+    </form>
+    <ul id="topicsList" class="divide-y divide-gray-200">
+      {% for topic in topics %}
+        <li class="py-2 flex justify-between items-center">
+          <span>{{ topic.name }}</span>
+          <span class="text-xs text-gray-400">{{ topic.estimated_time_minutes }} min</span>
+        </li>
+      {% else %}
+        <li class="py-2 text-gray-400">No topics yet.</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <!-- Quiz Section -->
+  <div class="mt-8 border-t pt-6">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-lg font-semibold">Quizzes</h3>
+      <button id="addQuizBtn" class="bg-green-600 text-white px-3 py-1 rounded text-sm">Add Quiz</button>
+    </div>
+    
+    <div id="quizzesList" class="space-y-4">
+      {% if quizzes %}
+        {% for quiz in quizzes %}
+          <div class="bg-gray-50 p-4 rounded-lg border">
+            <div class="flex justify-between items-center mb-2">
+              <h4 class="font-medium">{{ quiz.title }}</h4>
+              <div class="space-x-2">
+                <button class="edit-quiz-btn text-blue-600 hover:text-blue-800" data-quiz-id="{{ quiz.id }}">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button class="delete-quiz-btn text-red-600 hover:text-red-800" data-quiz-id="{{ quiz.id }}">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </div>
+            <p class="text-sm text-gray-600 mb-2">{{ quiz.description or 'No description' }}</p>
+            <div class="text-xs text-gray-500">{{ quiz.questions|length }} questions</div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <p class="text-gray-500 italic">No quizzes available for this subject. Add a quiz to help students test their knowledge.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Add Quiz Modal -->
+<div id="addQuizModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden">
+  <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
+    <h3 class="text-xl font-semibold mb-4">Add Quiz</h3>
+    <form id="addQuizForm">
+      <div class="mb-4">
+        <label class="block text-gray-700 mb-1">Quiz Title</label>
+        <input type="text" name="title" class="w-full border rounded px-3 py-2" required>
+      </div>
+      <div class="mb-4">
+        <label class="block text-gray-700 mb-1">Description</label>
+        <textarea name="description" class="w-full border rounded px-3 py-2" rows="3"></textarea>
+      </div>
+      <div class="flex justify-end space-x-2">
+        <button type="button" id="cancelAddQuiz" class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300">Cancel</button>
+        <button type="submit" class="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700">Create</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Add Topic AJAX
+  document.getElementById('addTopicForm').onsubmit = async function(e) {
+    e.preventDefault();
+    const form = e.target;
+    const data = { name: form.name.value };
+    const res = await fetch('{{ url_for("main.add_topic", subject_id=subject.id) }}', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data)
+    });
+    if (res.ok) {
+      location.reload();
+    } else {
+      alert('Failed to add topic');
+    }
+  };
+
+  // Edit Subject (simple redirect, you can make a modal for editing)
+  document.getElementById('editSubjectBtn').onclick = function() {
+    window.location.href = "{{ url_for('main.edit_subject', subject_id=subject.id) }}";
+  };
+
+  // Quiz Modal Controls
+  const addQuizBtn = document.getElementById('addQuizBtn');
+  const addQuizModal = document.getElementById('addQuizModal');
+  const cancelAddQuiz = document.getElementById('cancelAddQuiz');
+
+  if (addQuizBtn) {
+    addQuizBtn.onclick = function() {
+      addQuizModal.classList.remove('hidden');
+    }
+  }
+
+  if (cancelAddQuiz) {
+    cancelAddQuiz.onclick = function() {
+      addQuizModal.classList.add('hidden');
+    }
+  }
+
+  // Add Quiz Form Submission
+  const addQuizForm = document.getElementById('addQuizForm');
+  if (addQuizForm) {
+    addQuizForm.onsubmit = async function(e) {
+      e.preventDefault();
+      const form = e.target;
+      const data = {
+        title: form.title.value,
+        description: form.description.value,
+        subject_id: {{ subject.id }}
+      };
+      
+      try {
+        const res = await fetch('/admin/quizzes/create', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(data)
+        });
+        
+        if (res.ok) {
+          location.reload();
+        } else {
+          const errorData = await res.json();
+          alert('Failed to create quiz: ' + (errorData.error || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('Error creating quiz: ' + err.message);
+      }
+    };
+  }
+
+  // Edit and Delete Quiz Buttons
+  document.querySelectorAll('.edit-quiz-btn').forEach(btn => {
+    btn.onclick = function() {
+      const quizId = this.dataset.quizId;
+      window.location.href = `/admin/quizzes/${quizId}/edit`;
+    };
+  });
+
+  document.querySelectorAll('.delete-quiz-btn').forEach(btn => {
+    btn.onclick = async function() {
+      if (!confirm('Are you sure you want to delete this quiz?')) return;
+      
+      const quizId = this.dataset.quizId;
+      try {
+        const res = await fetch(`/admin/quizzes/${quizId}/delete`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'}
+        });
+        
+        if (res.ok) {
+          location.reload();
+        } else {
+          const errorData = await res.json();
+          alert('Failed to delete quiz: ' + (errorData.error || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('Error deleting quiz: ' + err.message);
+      }
+    };
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block content %}
+<!-- Always show the sidebar when in chat view -->
+<div class="flex">
+  <!-- Chat Users Sidebar -->
+  <div class="w-64 bg-gray-100 min-h-screen p-4 border-r">
+    <h2 class="text-xl font-bold mb-6">Chat Messages</h2>
+    <ul class="space-y-2">
+      {% for u in users %}
+        <li>
+          <a href="{{ url_for('main.admin_chat', user_id=u.id) }}" class="flex items-center hover:bg-gray-200 px-3 py-2 rounded-md {% if u.id == user.id %}bg-blue-100{% endif %}">
+            <i class="fas fa-user-circle mr-3 text-gray-500"></i>
+            <span>{{ u.username }}</span>
+          </a>
+        </li>
+      {% else %}
+        <li class="text-gray-500 italic px-3 py-2">No chat messages yet</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <!-- Main Content -->
+  <div class="flex-1">
+    <div class="container mx-auto px-4 py-8">
+      <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-lg overflow-hidden">
+        <div class="bg-blue-600 text-white px-6 py-4">
+            <h1 class="text-xl font-bold">
+                <i class="fas fa-comments mr-2"></i>Chat with Admin
+            </h1>
+            <p class="text-sm">
+                {% if user.is_active %}
+                    User: {{ user.username }}
+                {% else %}
+                    Blocked User: {{ user.username }}
+                {% endif %}
+            </p>
+        </div>
+
+        <!-- Chat Messages -->
+        <div class="p-6 h-96 overflow-y-auto bg-gray-50" id="chat-messages">
+            {% if chats %}
+                {% for chat in chats %}
+                    <div class="mb-4 {% if chat.is_from_admin %}text-right{% endif %}">
+                        <div class="inline-block rounded-lg px-4 py-2 {% if chat.is_from_admin %}bg-blue-500 text-white{% else %}bg-gray-200 text-gray-800{% endif %}">
+                            <p>{{ chat.message }}</p>
+                            <p class="text-xs mt-1 {% if chat.is_from_admin %}text-blue-100{% else %}text-gray-500{% endif %}">
+                                {{ chat.timestamp.strftime('%Y-%m-%d %H:%M') }}
+                            </p>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="text-center text-gray-500 py-8">
+                    <p>No messages yet. Start the conversation!</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Message Input -->
+        <div class="border-t border-gray-200 p-4">
+            <form method="POST" class="flex">
+                <input type="text" name="message" placeholder="Type your message..." class="flex-1 border border-gray-300 rounded-l-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-r-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <i class="fas fa-paper-plane mr-2"></i>Send
+                </button>
+            </form>
+        </div>
+
+        <!-- Back Button -->
+        <div class="border-t border-gray-200 p-4 bg-gray-50">
+            <a href="{{ url_for('auth.login') }}" class="inline-block bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Login
+            </a>
+            </div>
+        </div>
+    </div>
+  </div>
+</div>
+
+<script>
+    // Auto-scroll to bottom of chat
+    document.addEventListener('DOMContentLoaded', function() {
+        var chatMessages = document.getElementById('chat-messages');
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    });
+</script>
+{% endblock %}

@@ -3,6 +3,94 @@ from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from app import db, login_manager
 
+# Model for blocked users chat feature
+class AdminChat(db.Model):
+    __tablename__ = 'admin_chats'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    admin_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    message = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    is_from_admin = db.Column(db.Boolean, default=False)
+    is_read = db.Column(db.Boolean, default=False)
+    
+    # Relationships
+    user = db.relationship('User', foreign_keys=[user_id], backref=db.backref('user_chats', lazy='dynamic'))
+    admin = db.relationship('User', foreign_keys=[admin_id], backref=db.backref('admin_chats', lazy='dynamic'))
+    
+    def __repr__(self):
+        return f'<AdminChat {self.id}>'
+
+# Quiz models for admin functionality
+class Quiz(db.Model):
+    __tablename__ = 'quizzes'
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)
+    subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_active = db.Column(db.Boolean, default=True)
+    
+    # Relationships
+    questions = db.relationship('QuizQuestion', backref='quiz', lazy='dynamic', cascade='all, delete-orphan')
+    subject = db.relationship('Subject', backref=db.backref('quizzes', lazy='dynamic'))
+    
+    def __repr__(self):
+        return f'<Quiz {self.title}>'
+
+class QuizQuestion(db.Model):
+    __tablename__ = 'quiz_questions'
+    id = db.Column(db.Integer, primary_key=True)
+    quiz_id = db.Column(db.Integer, db.ForeignKey('quizzes.id'), nullable=False)
+    question_text = db.Column(db.Text, nullable=False)
+    question_type = db.Column(db.String(20), default='multiple_choice')  # multiple_choice, true_false, short_answer
+    points = db.Column(db.Integer, default=1)
+    
+    # Relationships
+    options = db.relationship('QuizOption', backref='question', lazy='dynamic', cascade='all, delete-orphan')
+    
+    def __repr__(self):
+        return f'<QuizQuestion {self.id}>'
+
+class QuizOption(db.Model):
+    __tablename__ = 'quiz_options'
+    id = db.Column(db.Integer, primary_key=True)
+    question_id = db.Column(db.Integer, db.ForeignKey('quiz_questions.id'), nullable=False)
+    option_text = db.Column(db.Text, nullable=False)
+    is_correct = db.Column(db.Boolean, default=False)
+    
+    def __repr__(self):
+        return f'<QuizOption {self.id}>'
+
+class QuizAttempt(db.Model):
+    __tablename__ = 'quiz_attempts'
+    id = db.Column(db.Integer, primary_key=True)
+    quiz_id = db.Column(db.Integer, db.ForeignKey('quizzes.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    start_time = db.Column(db.DateTime, default=datetime.utcnow)
+    end_time = db.Column(db.DateTime)
+    score = db.Column(db.Integer)
+    max_score = db.Column(db.Integer)
+    
+    # Relationships
+    answers = db.relationship('QuizAnswer', backref='attempt', lazy='dynamic', cascade='all, delete-orphan')
+    
+    def __repr__(self):
+        return f'<QuizAttempt {self.id}>'
+
+class QuizAnswer(db.Model):
+    __tablename__ = 'quiz_answers'
+    id = db.Column(db.Integer, primary_key=True)
+    attempt_id = db.Column(db.Integer, db.ForeignKey('quiz_attempts.id'), nullable=False)
+    question_id = db.Column(db.Integer, db.ForeignKey('quiz_questions.id'), nullable=False)
+    selected_option_id = db.Column(db.Integer, db.ForeignKey('quiz_options.id'))
+    text_answer = db.Column(db.Text)  # For short answer questions
+    is_correct = db.Column(db.Boolean)
+    points_earned = db.Column(db.Integer, default=0)
+    
+    def __repr__(self):
+        return f'<QuizAnswer {self.id}>'
+
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
@@ -195,3 +283,4 @@ class ExamMode(db.Model):
     
     def __repr__(self):
         return f'<ExamMode {self.id}>'
+

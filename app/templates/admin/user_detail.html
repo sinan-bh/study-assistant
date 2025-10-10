@@ -66,6 +66,45 @@
     </div>
   </div>
 
+  <!-- Chat Messages Section -->
+  {% if not user.is_active %}
+  <div class="mt-8 bg-white rounded-lg shadow-md p-6">
+    <h2 class="text-xl font-semibold mb-4">
+      <i class="fas fa-comments mr-2 text-blue-600"></i>Chat Messages
+    </h2>
+    
+    <!-- Chat Messages Display -->
+    <div class="border rounded-lg mb-4">
+      <div class="h-64 overflow-y-auto p-4 bg-gray-50" id="chat-messages">
+        {% if chats %}
+          {% for chat in chats %}
+            <div class="mb-4 {% if chat.is_from_admin %}text-right{% endif %}">
+              <div class="inline-block rounded-lg px-4 py-2 {% if chat.is_from_admin %}bg-blue-500 text-white{% else %}bg-gray-200 text-gray-800{% endif %}">
+                <p>{{ chat.message }}</p>
+                <p class="text-xs mt-1 {% if chat.is_from_admin %}text-blue-100{% else %}text-gray-500{% endif %}">
+                  {{ chat.timestamp.strftime('%Y-%m-%d %H:%M') }}
+                </p>
+              </div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-center text-gray-500 py-8">
+            <p>No messages yet from this user.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+    
+    <!-- Message Input Form -->
+    <form action="{{ url_for('main.admin_chat', user_id=user.id) }}" method="POST" class="flex">
+      <input type="text" name="message" placeholder="Type your reply..." class="flex-1 border border-gray-300 rounded-l-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+      <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-r-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <i class="fas fa-paper-plane mr-2"></i>Send
+      </button>
+    </form>
+  </div>
+  {% endif %}
+
   <!-- JavaScript for toggling user status -->
   <script>
     function toggleUserStatus(userId, username, isActive) {
@@ -91,5 +130,13 @@
         });
       }
     }
+    
+    // Auto-scroll to bottom of chat
+    document.addEventListener('DOMContentLoaded', function() {
+      var chatMessages = document.getElementById('chat-messages');
+      if (chatMessages) {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+    });
   </script>
 {% endblock %}

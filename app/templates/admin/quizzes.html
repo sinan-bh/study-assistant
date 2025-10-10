@@ -1,0 +1,259 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block admin_content %}
+  <div class="bg-white rounded-lg p-6">
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-2xl font-bold text-gray-900">All Quizzes</h2>
+      <button id="addQuizBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Add Quiz</button>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="min-w-full bg-white">
+        <thead class="bg-gray-100">
+          <tr>
+            <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+            <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Questions</th>
+            <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200">
+          {% for quiz in quizzes %}
+            <tr>
+              <td class="py-4 px-4">{{ quiz.title }}</td>
+              <td class="py-4 px-4">{{ quiz.questions.count() }}</td>
+              <td class="py-4 px-4">
+                <a href="{{ url_for('admin.view_quiz', quiz_id=quiz.id) }}" class="text-blue-600 hover:text-blue-800 mr-3">View</a>
+                <button class="text-green-600 hover:text-green-800 mr-3 edit-quiz" data-id="{{ quiz.id }}" data-title="{{ quiz.title }}" data-description="{{ quiz.description }}" data-subject="{{ quiz.subject_id }}">Edit</button>
+                <button class="text-red-600 hover:text-red-800 delete-quiz" data-id="{{ quiz.id }}">Delete</button>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="4" class="py-4 px-4 text-center text-gray-500">No quizzes found</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Add Quiz Modal -->
+  <div id="addQuizModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center">
+    <div class="bg-white rounded-lg p-8 max-w-lg w-full">
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-xl font-bold">Add New Quiz</h3>
+        <button class="close-modal text-gray-500 hover:text-gray-700">&times;</button>
+      </div>
+      <form id="addQuizForm">
+        <div class="mb-4">
+          <label for="quizTitle" class="block text-gray-700 mb-2">Quiz Title</label>
+          <input type="text" id="quizTitle" name="title" class="w-full border rounded px-3 py-2" required />
+        </div>
+
+        <div class="flex justify-end">
+          <button type="button" class="close-modal bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded mr-2">Cancel</button>
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Save Quiz</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit Quiz Modal -->
+  <div id="editQuizModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center">
+    <div class="bg-white rounded-lg p-8 max-w-md w-full">
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-xl font-bold">Edit Quiz</h3>
+        <button class="close-modal text-gray-500 hover:text-gray-700">&times;</button>
+      </div>
+      <form id="editQuizForm">
+        <input type="hidden" id="editQuizId" name="quiz_id" />
+        <div class="mb-4">
+          <label for="editQuizTitle" class="block text-gray-700 mb-2">Title</label>
+          <input type="text" id="editQuizTitle" name="title" class="w-full border rounded px-3 py-2" required />
+        </div>
+        <div class="mb-4">
+          <label for="editQuizDescription" class="block text-gray-700 mb-2">Description</label>
+          <textarea id="editQuizDescription" name="description" class="w-full border rounded px-3 py-2" rows="3"></textarea>
+        </div>
+        <div class="mb-6">
+          <label for="editQuizSubjectName" class="block text-gray-700 mb-2">Subject Name</label>
+          <input type="text" id="editQuizSubjectName" name="subject_name" class="w-full border rounded px-3 py-2" required placeholder="Enter subject name" />
+        </div>
+        <div class="flex justify-end">
+          <button type="button" class="close-modal bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded mr-2">Cancel</button>
+          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Update Quiz</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div id="deleteQuizModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center">
+    <div class="bg-white rounded-lg p-8 max-w-md w-full">
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-xl font-bold">Delete Quiz</h3>
+        <button class="close-modal text-gray-500 hover:text-gray-700">&times;</button>
+      </div>
+      <p class="mb-6">Are you sure you want to delete this quiz? This action cannot be undone.</p>
+      <form id="deleteQuizForm">
+        <input type="hidden" id="deleteQuizId" name="quiz_id" />
+        <div class="flex justify-end">
+          <button type="button" class="close-modal bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded mr-2">Cancel</button>
+          <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">Delete</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      // Add Quiz Modal
+      const addQuizBtn = document.getElementById('addQuizBtn')
+      const addQuizModal = document.getElementById('addQuizModal')
+      const addQuizForm = document.getElementById('addQuizForm')
+    
+      // Edit Quiz Modal
+      const editQuizModal = document.getElementById('editQuizModal')
+      const editQuizForm = document.getElementById('editQuizForm')
+      const editButtons = document.querySelectorAll('.edit-quiz')
+    
+      // Delete Quiz Modal
+      const deleteQuizModal = document.getElementById('deleteQuizModal')
+      const deleteQuizForm = document.getElementById('deleteQuizForm')
+      const deleteButtons = document.querySelectorAll('.delete-quiz')
+    
+      // Close Modal Buttons
+      const closeButtons = document.querySelectorAll('.close-modal')
+    
+      // Open Add Quiz Modal
+      addQuizBtn.addEventListener('click', function () {
+        addQuizModal.classList.remove('hidden')
+      })
+    
+      // Open Edit Quiz Modal
+      editButtons.forEach((button) => {
+        button.addEventListener('click', function () {
+          const id = this.getAttribute('data-id')
+          const title = this.getAttribute('data-title')
+          const description = this.getAttribute('data-description')
+          const subjectName = this.closest('tr').querySelector('td:nth-child(2)').textContent
+    
+          document.getElementById('editQuizId').value = id
+          document.getElementById('editQuizTitle').value = title
+          document.getElementById('editQuizDescription').value = description
+          document.getElementById('editQuizSubjectName').value = subjectName
+    
+          editQuizModal.classList.remove('hidden')
+        })
+      })
+    
+      // Open Delete Quiz Modal
+      deleteButtons.forEach((button) => {
+        button.addEventListener('click', function () {
+          const id = this.getAttribute('data-id')
+          document.getElementById('deleteQuizId').value = id
+          deleteQuizModal.classList.remove('hidden')
+        })
+      })
+    
+      // Close Modals
+      closeButtons.forEach((button) => {
+        button.addEventListener('click', function () {
+          addQuizModal.classList.add('hidden')
+          editQuizModal.classList.add('hidden')
+          deleteQuizModal.classList.add('hidden')
+        })
+      })
+    
+      // Submit Add Quiz Form
+      addQuizForm.addEventListener('submit', function (e) {
+        e.preventDefault()
+    
+        const formData = {
+          title: document.getElementById('quizTitle').value
+        }
+    
+        fetch('/admin/quizzes/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        })
+          .then((response) => {
+            if (!response.ok) {
+              return response.json().then((data) => {
+                throw new Error(data.error || 'Failed to create quiz')
+              })
+            }
+            return response.json()
+          })
+          .then((data) => {
+            window.location.href = `/admin/quizzes/${data.quiz_id}`
+          })
+          .catch((error) => {
+            console.error('Error:', error)
+            alert('An error occurred: ' + error.message)
+          })
+      })
+    
+      // Submit Edit Quiz Form
+      editQuizForm.addEventListener('submit', function (e) {
+        e.preventDefault()
+    
+        const quizId = document.getElementById('editQuizId').value
+        const formData = {
+          title: document.getElementById('editQuizTitle').value,
+          description: document.getElementById('editQuizDescription').value,
+          subject_name: document.getElementById('editQuizSubjectName').value
+        }
+    
+        fetch(`/admin/quizzes/${quizId}/edit`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.success) {
+              window.location.reload()
+            } else {
+              alert('Error: ' + data.error)
+            }
+          })
+          .catch((error) => {
+            console.error('Error:', error)
+            alert('An error occurred. Please try again.')
+          })
+      })
+    
+      // Submit Delete Quiz Form
+      deleteQuizForm.addEventListener('submit', function (e) {
+        e.preventDefault()
+    
+        const quizId = document.getElementById('deleteQuizId').value
+    
+        fetch(`/admin/quizzes/${quizId}/delete`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.success) {
+              window.location.reload()
+            } else {
+              alert('Error: ' + data.error)
+            }
+          })
+          .catch((error) => {
+            console.error('Error:', error)
+            alert('An error occurred. Please try again.')
+          })
+      })
+    })
+  </script>
+{% endblock %}

@@ -20,8 +20,8 @@ def login():
             return redirect(url_for('auth.login'))
         
         if not user.is_active:
-            flash('Your account has been blocked. Please contact an administrator.', 'error')
-            return redirect(url_for('auth.login'))
+            # Instead of just flashing a message, render the login page with blocked status
+            return render_template('auth/login.html', title='Sign In', form=form, blocked_user=user)
         
         login_user(user, remember=form.remember_me.data)
         next_page = request.args.get('next')

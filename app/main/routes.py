@@ -1,10 +1,244 @@
-from flask import render_template, redirect, url_for, request, jsonify, send_from_directory, current_app
+from flask import render_template, redirect, url_for, request, jsonify, send_from_directory, current_app, session, flash
 from flask_login import current_user, login_required
 from app import db
 from app.main import bp
-from app.models import User, Subject, StudySession, Topic, ExamMode
+from app.models import User, Subject, StudySession, Topic, ExamMode, Quiz, QuizQuestion, QuizOption, AdminChat
+import random
 import os
+from sqlalchemy import func, distinct
 from datetime import datetime, timedelta
+
+# Get list of users with chat messages
+@bp.route('/chat-users')
+@login_required
+def chat_users():
+    if current_user.is_admin:
+        # For admins, get all users who have chat messages
+        users_with_chats = db.session.query(User).join(
+            AdminChat, AdminChat.user_id == User.id
+        ).group_by(User.id).all()
+    else:
+        # For regular users, only show their own chats
+        users_with_chats = [current_user] if AdminChat.query.filter_by(user_id=current_user.id).first() else []
+    
+    return render_template('main/chat_users.html', users=users_with_chats)
+
+# Admin chat route for blocked users
+@bp.route('/admin-chat/<int:user_id>', methods=['GET', 'POST'])
+def admin_chat(user_id):
+    user = User.query.get_or_404(user_id)
+    
+    # Create session key for this specific user's chat
+    session_key = f'last_message_user_{user_id}'
+    
+    # Set a flag to indicate we're in the chat view
+    session['in_chat_view'] = True
+    
+    if request.method == 'POST':
+        message = request.form.get('message')
+        if message:
+            # Store the message in session
+            session[session_key] = message
+            
+            # Create a new chat message
+            chat = AdminChat(
+                user_id=user_id,
+                admin_id=current_user.id if current_user.is_authenticated and current_user.is_admin else None,
+                message=message,
+                is_from_admin=current_user.is_authenticated and current_user.is_admin
+            )
+            db.session.add(chat)
+            db.session.commit()
+            flash('Message sent successfully', 'success')
+            
+            # Clear the session after successful send to prevent duplicate messages
+            session.pop(session_key, None)
+    elif request.method == 'GET':
+        # Check if there's a stored message that wasn't sent (due to refresh)
+        if session_key in session:
+            last_message = session.get(session_key)
+            if last_message:
+                # Resend the last message
+                is_admin_user = current_user.is_authenticated and hasattr(current_user, 'is_admin') and current_user.is_admin
+                chat = AdminChat(
+                    user_id=user_id,
+                    admin_id=current_user.id if is_admin_user else None,
+                    message=last_message,
+                    is_from_admin=is_admin_user
+                )
+                db.session.add(chat)
+                db.session.commit()
+                flash('Previous message resent successfully', 'info')
+                
+                # Clear the session after successful resend
+                session.pop(session_key, None)
+    
+    # Get all chat messages for this user
+    chats = AdminChat.query.filter_by(user_id=user_id).order_by(AdminChat.timestamp).all()
+    
+    # Get all users with chats for the sidebar
+    if current_user.is_authenticated and hasattr(current_user, 'is_admin') and current_user.is_admin:
+        users_with_chats = db.session.query(User).join(
+            AdminChat, AdminChat.user_id == User.id
+        ).group_by(User.id).all()
+    else:
+        users_with_chats = [current_user] if current_user.is_authenticated and AdminChat.query.filter_by(user_id=current_user.id).first() else []
+    
+    return render_template('main/admin_chat.html', user=user, chats=chats, users=users_with_chats)
+
+# Quiz routes for users
+@bp.route('/quizzes')
+@login_required
+def quizzes():
+    # Redirect admin users to admin quizzes page
+    if hasattr(current_user, 'is_admin') and current_user.is_admin:
+        return redirect(url_for('admin.quizzes'))
+        
+    # Get all active quizzes
+    quizzes = Quiz.query.filter_by(is_active=True).all()
+    return render_template('main/quizzes.html', title='Quizzes', quizzes=quizzes)
+
+@bp.route('/quiz/<int:quiz_id>')
+@login_required
+def start_quiz(quiz_id):
+    quiz = Quiz.query.get_or_404(quiz_id)
+    
+    # Get all questions for this quiz and randomize them
+    questions = QuizQuestion.query.filter_by(quiz_id=quiz_id).all()
+    if not questions:
+        return render_template('main/quiz_empty.html', quiz=quiz)
+    
+    # Randomize questions
+    random_questions = random.sample(questions, len(questions))
+    
+    # Store question IDs in session
+    session['quiz_questions'] = [q.id for q in random_questions]
+    session['current_question_index'] = 0
+    session['quiz_id'] = quiz_id
+    session['quiz_start_time'] = datetime.utcnow().timestamp()
+    session['quiz_answers'] = []
+    
+    # Redirect to the first question
+    return redirect(url_for('main.quiz_question', question_index=0))
+
+@bp.route('/quiz/question/<int:question_index>')
+@login_required
+def quiz_question(question_index):
+    # Check if quiz is in progress
+    if 'quiz_questions' not in session:
+        return redirect(url_for('main.quizzes'))
+    
+    # Get quiz and question information
+    quiz_id = session.get('quiz_id')
+    quiz = Quiz.query.get_or_404(quiz_id)
+    
+    # Check if question index is valid
+    question_ids = session.get('quiz_questions', [])
+    if question_index >= len(question_ids) or question_index < 0:
+        return redirect(url_for('main.quizzes'))
+    
+    # Get the current question
+    question_id = question_ids[question_index]
+    question = QuizQuestion.query.get_or_404(question_id)
+    
+    # Get options for this question
+    options = QuizOption.query.filter_by(question_id=question_id).all()
+    
+    # Calculate progress
+    progress = int((question_index / len(question_ids)) * 100)
+    
+    return render_template(
+        'main/quiz_question.html',
+        quiz=quiz,
+        question=question,
+        options=options,
+        question_index=question_index,
+        total_questions=len(question_ids),
+        progress=progress
+    )
+
+@bp.route('/quiz/submit/<int:question_index>', methods=['POST'])
+@login_required
+def submit_answer(question_index):
+    # Check if quiz is in progress
+    if 'quiz_questions' not in session:
+        return redirect(url_for('main.quizzes'))
+    
+    # Get selected option
+    option_id = request.form.get('option_id')
+    if not option_id:
+        return redirect(url_for('main.quiz_question', question_index=question_index))
+    
+    # Save answer
+    quiz_answers = session.get('quiz_answers', [])
+    quiz_answers.append({
+        'question_id': session['quiz_questions'][question_index],
+        'option_id': int(option_id),
+        'timestamp': datetime.utcnow().timestamp()
+    })
+    session['quiz_answers'] = quiz_answers
+    
+    # Move to next question or finish quiz
+    next_index = question_index + 1
+    if next_index < len(session['quiz_questions']):
+        return redirect(url_for('main.quiz_question', question_index=next_index))
+    else:
+        return redirect(url_for('main.quiz_results'))
+
+@bp.route('/quiz/results')
+@login_required
+def quiz_results():
+    # Check if quiz is completed
+    if 'quiz_questions' not in session or 'quiz_answers' not in session:
+        return redirect(url_for('main.quizzes'))
+    
+    quiz_id = session.get('quiz_id')
+    quiz = Quiz.query.get_or_404(quiz_id)
+    
+    # Calculate results
+    correct_answers = 0
+    total_questions = len(session['quiz_questions'])
+    
+    results = []
+    for answer in session['quiz_answers']:
+        question_id = answer['question_id']
+        option_id = answer['option_id']
+        
+        question = QuizQuestion.query.get(question_id)
+        selected_option = QuizOption.query.get(option_id)
+        
+        # Find correct option
+        correct_option = QuizOption.query.filter_by(question_id=question_id, is_correct=True).first()
+        
+        is_correct = selected_option.is_correct if selected_option else False
+        if is_correct:
+            correct_answers += 1
+            
+        results.append({
+            'question': question,
+            'selected_option': selected_option,
+            'correct_option': correct_option,
+            'is_correct': is_correct
+        })
+    
+    # Calculate score
+    score = int((correct_answers / total_questions) * 100) if total_questions > 0 else 0
+    
+    # Clear session data
+    session.pop('quiz_questions', None)
+    session.pop('current_question_index', None)
+    session.pop('quiz_id', None)
+    session.pop('quiz_start_time', None)
+    session.pop('quiz_answers', None)
+    
+    return render_template(
+        'main/quiz_results.html',
+        quiz=quiz,
+        results=results,
+        score=score,
+        correct_answers=correct_answers,
+        total_questions=total_questions
+    )
 
 @bp.route('/')
 @bp.route('/index')
@@ -16,15 +250,24 @@ def index():
 @bp.route('/dashboard')
 @login_required
 def dashboard():
+    # Redirect admin users to admin dashboard
+    if hasattr(current_user, 'is_admin') and current_user.is_admin:
+        return redirect(url_for('admin.dashboard'))
+        
     # Clear expired break lazily
     if current_user.lunch_break_until and current_user.lunch_break_until <= datetime.utcnow():
         current_user.lunch_break_until = None
         db.session.commit()
 
-    subjects = Subject.query.filter_by(user_id=current_user.id, is_active=True).all()
+    today = datetime.today().date()
+    # Filter subjects to only show those created today
+    subjects = Subject.query.filter(
+        Subject.user_id == current_user.id,
+        Subject.is_active == True,
+        db.func.date(Subject.created_at) == today
+    ).all()
     recent_sessions = StudySession.query.filter_by(user_id=current_user.id)\
         .order_by(StudySession.start_time.desc()).limit(5).all()
-    today = datetime.today().date()
 
     # Stats
     active_subjects_count = len(subjects)
@@ -47,6 +290,9 @@ def dashboard():
     # Use Subject.finished_at rather than sessions now
     # finished_subject_ids already computed above
 
+    # Format today's date for display
+    today_date = today.strftime('%A, %B %d, %Y')
+    
     return render_template('main/dashboard.html', 
                          title='Dashboard',
                          subjects=subjects,
@@ -60,7 +306,8 @@ def dashboard():
                          finished_subject_ids=finished_subject_ids,
                          is_on_break=bool(current_user.lunch_break_until and current_user.lunch_break_until > datetime.utcnow()),
                          break_remaining_seconds=max(int((current_user.lunch_break_until - datetime.utcnow()).total_seconds()), 0) if current_user.lunch_break_until else 0,
-                         break_duration_minutes=current_user.break_duration_minutes or 30)
+                         break_duration_minutes=current_user.break_duration_minutes or 30,
+                         today_date=today_date)
 
 @bp.route('/profile')
 @login_required
@@ -290,6 +537,8 @@ def delete_subject(subject_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
 
 @bp.route('/delete_topic/<int:topic_id>', methods=['POST'])
 @login_required

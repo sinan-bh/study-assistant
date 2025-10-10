@@ -3,7 +3,10 @@
 {% block content %}
   <!-- Header -->
   <div class="flex justify-between items-center mb-8">
-    <h1 class="text-3xl font-bold text-gray-900"><i class="fas fa-tachometer-alt mr-3 text-blue-600"></i>Dashboard</h1>
+    <div>
+      <h1 class="text-3xl font-bold text-gray-900"><i class="fas fa-tachometer-alt mr-3 text-blue-600"></i>Dashboard</h1>
+      <div class="text-sm text-gray-500 ml-11">{{ today_date }}</div>
+    </div>
     <div class="text-gray-600">Welcome back, {{ current_user.first_name }}!</div>
   </div>
 
@@ -65,28 +68,6 @@
     
   </div>
 
-  <!-- Break Toggle -->
-  <!-- <div class="mb-6">
-    <div class="bg-white rounded-lg shadow p-4 flex items-center justify-between">
-      <div>
-        <div class="font-semibold text-gray-900">Lunch Break</div>
-        <div id="breakStatusText" class="text-sm text-gray-600">
-          {% if is_on_break %}
-            On break — ends in <span id="breakCountdown"></span>
-          {% else %}
-            Not on break (default {{ break_duration_minutes }} minutes)
-          {% endif %}
-        </div>
-      </div>
-      <label class="inline-flex items-center cursor-pointer">
-        <input type="checkbox" id="breakToggle" class="sr-only" {% if is_on_break %}checked{% endif %}>
-        <span class="relative inline-block w-12 h-6 bg-gray-300 rounded-full transition-all">
-          <span id="breakKnob" class="absolute left-0 top-0 w-6 h-6 bg-white rounded-full shadow transform transition-transform {% if is_on_break %}translate-x-6{% endif %}"></span>
-        </span>
-      </label>
-    </div>
-  </div> -->
-
   <!-- Main Content Grid -->
   <div class="flex flex-col gap-8 mb-8">
     <!-- Subjects Section -->
@@ -98,43 +79,52 @@
         </button>
       </div>
       <div class="space-y-4">
-        {% for subject in subjects %}
-          <div class="py-2 border-b subject-card " id="subject-{{ subject.id }}">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-3">
-                <button class="w-6 h-6 flex items-center justify-center text-gray-600 hover:text-gray-900" aria-label="Toggle topics" onclick="toggleTopics({{ subject.id }})">
-                  <i id="chev-{{ subject.id }}" class="fas fa-chevron-right"></i>
-                </button>
-                <span class="cursor-pointer font-bold px-3 py-1 rounded flex items-center" onclick="toggleTopics({{ subject.id }})">
-                  {{ subject.name }}
-                </span>
-                <span class="text-xs text-gray-500">({{ subject.start_time_ampm }} - {{ subject.end_time_ampm }})</span>
+        {% if subjects %}
+          {% for subject in subjects %}
+            <div class="py-2 border-b subject-card " id="subject-{{ subject.id }}">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                  <button class="w-6 h-6 flex items-center justify-center text-gray-600 hover:text-gray-900" aria-label="Toggle topics" onclick="toggleTopics({{ subject.id }})">
+                    <i id="chev-{{ subject.id }}" class="fas fa-chevron-right"></i>
+                  </button>
+                  <span class="cursor-pointer font-bold px-3 py-1 rounded flex items-center" onclick="toggleTopics({{ subject.id }})">
+                    {{ subject.name }}
+                  </span>
+                  <span class="text-xs text-gray-500">({{ subject.start_time_ampm }} - {{ subject.end_time_ampm }})</span>
+                </div>
+                <div class="flex items-center  space-x-2">
+                  <button class="bg-green-600 text-white px-2 py-1 rounded text-xs" title="Finish" onclick="completeSubject(this, {{ subject.id }})">Finish</button>
+                  <button class="bg-blue-500 text-white px-2 py-1 rounded text-xs" onclick="openEditSubject({{ subject.id }}, {{ subject.name|tojson }})"><i class="fas fa-edit"></i></button>
+                  <button class="bg-red-500 text-white px-2 py-1 rounded text-xs delete-subject-btn" data-subject-id="{{ subject.id }}"><i class="fas fa-trash"></i></button>
+                </div>
               </div>
-              <div class="flex items-center  space-x-2">
-                <button class="bg-green-600 text-white px-2 py-1 rounded text-xs" title="Finish" onclick="completeSubject(this, {{ subject.id }})">Finish</button>
-                <button class="bg-blue-500 text-white px-2 py-1 rounded text-xs" onclick='openEditSubject({{ subject.id }}, {{ subject.name|tojson }})'><i class="fas fa-edit"></i></button>
-                <button class="bg-red-500 text-white px-2 py-1 rounded text-xs delete-subject-btn" data-subject-id="{{ subject.id }}"><i class="fas fa-trash"></i></button>
+              <div id="topics-{{ subject.id }}" class="hidden ml-9 mt-2">
+                <ul class="space-y-2 mb-3" id="topic-list-{{ subject.id }}">
+                  {% for topic in subject.topics %}
+                    <li class="flex justify-between items-center bg-gray-50 rounded px-3 py-2">
+                      <span class="flex items-center topic-name" data-topic-id="{{ topic.id }}"><i class="fas fa-circle text-gray-400 text-[8px] mr-2"></i>{{ topic.name }}</span>
+                      <div class="flex items-center space-x-2">
+                        <button class="bg-blue-500 text-white px-2 py-1 rounded text-xs edit-topic-btn" data-topic-id="{{ topic.id }}" data-topic-name="{{ topic.name }}"><i class="fas fa-edit"></i></button>
+                        <button class="bg-red-400 text-white px-2 py-1 rounded text-xs delete-topic-btn" data-topic-id="{{ topic.id }}"><i class="fas fa-trash"></i></button>
+                      </div>
+                    </li>
+                  {% endfor %}
+                </ul>
+                <div class="flex items-center space-x-2">
+                  <input type="text" placeholder="Add a topic" class="border rounded px-3 py-2 flex-1" id="new-topic-input-{{ subject.id }}">
+                  <button class="bg-green-600 text-white px-3 py-2 rounded text-sm" onclick="submitNewTopic({{ subject.id }})"><i class="fas fa-plus mr-1"></i></button>
+                </div>
               </div>
             </div>
-            <div id="topics-{{ subject.id }}" class="hidden ml-9 mt-2">
-              <ul class="space-y-2 mb-3" id="topic-list-{{ subject.id }}">
-                {% for topic in subject.topics %}
-                  <li class="flex justify-between items-center bg-gray-50 rounded px-3 py-2">
-                    <span class="flex items-center topic-name" data-topic-id="{{ topic.id }}"><i class="fas fa-circle text-gray-400 text-[8px] mr-2"></i>{{ topic.name }}</span>
-                    <div class="flex items-center space-x-2">
-                      <button class="bg-blue-500 text-white px-2 py-1 rounded text-xs edit-topic-btn" data-topic-id="{{ topic.id }}" data-topic-name="{{ topic.name }}"><i class="fas fa-edit"></i></button>
-                      <button class="bg-red-400 text-white px-2 py-1 rounded text-xs delete-topic-btn" data-topic-id="{{ topic.id }}"><i class="fas fa-trash"></i></button>
-                    </div>
-                  </li>
-                {% endfor %}
-              </ul>
-              <div class="flex items-center space-x-2">
-                <input type="text" placeholder="Add a topic" class="border rounded px-3 py-2 flex-1" id="new-topic-input-{{ subject.id }}">
-                <button class="bg-green-600 text-white px-3 py-2 rounded text-sm" onclick="submitNewTopic({{ subject.id }})"><i class="fas fa-plus mr-1"></i></button>
-              </div>
-            </div>
+          {% endfor %}
+        {% else %}
+          <div class="py-8 text-center">
+            <div class="text-gray-500 mb-4">No activities created today</div>
+            <button id="addSubjectBtn" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+              <i class="fas fa-plus mr-2"></i>Add New Activity
+            </button>
           </div>
-        {% endfor %}
+        {% endif %}
       </div>
     </div>
 
@@ -155,40 +145,42 @@
           <div class="flex space-x-2">
             {% set _h12 = (current_hour % 12) %}
             {% if _h12 == 0 %}{% set _h12 = 12 %}{% endif %}
-            <select name="start_hour_12" class="border rounded px-2 py-1" required>
+            <select name="start_hour_12" id="start_hour_12" class="border rounded px-2 py-1" required>
               {% for h in range(1,13) %}
                 <option value="{{ h }}" {% if h == _h12 %}selected{% endif %}>{{ "%02d"|format(h) }}</option>
               {% endfor %}
             </select>
-            <select name="start_minute" class="border rounded px-2 py-1" required>
+            <select name="start_minute" id="start_minute" class="border rounded px-2 py-1" required>
               {% for m in range(0,60,5) %}
                 <option value="{{ m }}" {% if m == (current_minute // 5 * 5) %}selected{% endif %}>{{ "%02d"|format(m) }}</option>
               {% endfor %}
             </select>
-            <select name="start_ampm" class="border rounded px-2 py-1" required>
+            <select name="start_ampm" id="start_ampm" class="border rounded px-2 py-1" required>
               <option value="AM" {% if current_hour < 12 %}selected{% endif %}>AM</option>
               <option value="PM" {% if current_hour >= 12 %}selected{% endif %}>PM</option>
             </select>
           </div>
+          <p class="text-xs text-gray-500 mt-1">Select current or future time only</p>
         </div>
         <div class="mb-4">
           <label class="block text-gray-700 mb-1">End Time</label>
           <div class="flex space-x-2">
-            <select name="end_hour_12" class="border rounded px-2 py-1" required>
+            <select name="end_hour_12" id="end_hour_12" class="border rounded px-2 py-1" required>
               {% for h in range(1,13) %}
                 <option value="{{ h }}">{{ "%02d"|format(h) }}</option>
               {% endfor %}
             </select>
-            <select name="end_minute" class="border rounded px-2 py-1" required>
+            <select name="end_minute" id="end_minute" class="border rounded px-2 py-1" required>
               {% for m in range(0,60,5) %}
                 <option value="{{ m }}">{{ "%02d"|format(m) }}</option>
               {% endfor %}
             </select>
-            <select name="end_ampm" class="border rounded px-2 py-1" required>
+            <select name="end_ampm" id="end_ampm" class="border rounded px-2 py-1" required>
               <option value="AM">AM</option>
               <option value="PM" selected>PM</option>
             </select>
           </div>
+          <p class="text-xs text-gray-500 mt-1">Must be after start time and before 11:55 AM</p>
         </div>
         <div class="flex justify-end space-x-2">
           <button type="button" id="cancelAddSubject" class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300">Cancel</button>
@@ -260,10 +252,60 @@
     document.getElementById('openAddSubject').onclick = function () {
       document.getElementById('addSubjectModal').classList.remove('hidden')
     }
+    // Initialize time selectors when modal opens
+    document.getElementById('openAddSubject').onclick = function () {
+      document.getElementById('addSubjectModal').classList.remove('hidden');
+      disablePastTimes(); // Disable past times when modal opens
+    }
+    
+    // Function to disable past time options
+    function disablePastTimes() {
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      const currentHour12 = currentHour % 12 || 12;
+      const currentAMPM = currentHour < 12 ? 'AM' : 'PM';
+      
+      const startHourSelect = document.getElementById('start_hour_12');
+      const startMinuteSelect = document.getElementById('start_minute');
+      const startAMPMSelect = document.getElementById('start_ampm');
+      
+      // Disable past hours in AM/PM format
+      for (let i = 0; i < startHourSelect.options.length; i++) {
+        const hourOption = startHourSelect.options[i];
+        const hour = parseInt(hourOption.value, 10);
+        
+        // If current AMPM is PM, disable all AM options
+        if (currentAMPM === 'PM' && startAMPMSelect.value === 'AM') {
+          hourOption.disabled = false; // Enable all hours for future days
+        } 
+        // If same AMPM period
+        else if (startAMPMSelect.value === currentAMPM) {
+          // Disable hours before current hour
+          hourOption.disabled = hour < currentHour12;
+        }
+      }
+      
+      // Disable past minutes if current hour is selected
+      if (parseInt(startHourSelect.value, 10) === currentHour12 && 
+          startAMPMSelect.value === currentAMPM) {
+        for (let i = 0; i < startMinuteSelect.options.length; i++) {
+          const minuteOption = startMinuteSelect.options[i];
+          const minute = parseInt(minuteOption.value, 10);
+          minuteOption.disabled = minute < currentMinute;
+        }
+      }
+    }
+    
+    // Add event listeners to update disabled options when selections change
+    document.getElementById('start_hour_12').addEventListener('change', disablePastTimes);
+    document.getElementById('start_ampm').addEventListener('change', disablePastTimes);
+    
     const openAddSubjectModalBtn = document.getElementById('openAddSubjectModal')
     if (openAddSubjectModalBtn) {
       openAddSubjectModalBtn.onclick = function () {
-        document.getElementById('addSubjectModal').classList.remove('hidden')
+        document.getElementById('addSubjectModal').classList.remove('hidden');
+        disablePastTimes(); // Disable past times when modal opens
       }
     }
     document.getElementById('cancelAddSubject').onclick = function () {
@@ -421,14 +463,43 @@
           return (h % 12) + 12; // 12 PM -> 12
         }
       }
+      
+      // Validate that selected time is not in the past
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      
       const startHour24 = to24(form.start_hour_12.value, form.start_ampm.value);
+      const startMinute = parseInt(form.start_minute.value, 10);
+      
+      // Check if selected time is in the past
+      if (startHour24 < currentHour || (startHour24 === currentHour && startMinute < currentMinute)) {
+        alert('Cannot select a time in the past. Please choose current or future time.');
+        return;
+      }
+      
       const endHour24 = to24(form.end_hour_12.value, form.end_ampm.value);
+      const endMinute = parseInt(form.end_minute.value, 10);
+      
+      // Check if end time is before start time
+      if (endHour24 < startHour24 || (endHour24 === startHour24 && endMinute <= startMinute)) {
+        alert('End time must be after start time.');
+        return;
+      }
+      
+      // Check if end time is after 11:55 PM
+      if ((form.end_ampm.value === 'PM' && form.end_hour_12.value === '11' && endMinute > 55) || 
+          (form.end_ampm.value === 'PM' && form.end_hour_12.value === '12')) {
+        alert('End time cannot be after 11:55 PM. Please select any future time up to 11:55 PM.');
+        return;
+      }
+      
       const data = {
         name: form.name.value,
         start_hour: startHour24,
-        start_minute: form.start_minute.value,
+        start_minute: startMinute,
         end_hour: endHour24,
-        end_minute: form.end_minute.value,
+        end_minute: endMinute,
         // Also send original fields for potential future parsing on backend
         start_hour_12: form.start_hour_12.value,
         start_ampm: form.start_ampm.value,
@@ -522,11 +593,7 @@
       
       // Use passPercentage if available, otherwise extract from message
       let percentage = passPercentage || 0;
-<<<<<<< HEAD
       if (!percentage && message) {
-=======
-      if (!percentage) {
->>>>>>> f0eae98948b434e56c314765f900c032ac83fd10
         const percentMatch = message.match(/(\d+)%/);
         if (percentMatch && percentMatch[1]) {
           percentage = parseInt(percentMatch[1]);
@@ -539,10 +606,7 @@
       let statusTitle = '';
       
       if (passStatus === true) {
-<<<<<<< HEAD
-=======
         statusTitle = 'PASS';
->>>>>>> f0eae98948b434e56c314765f900c032ac83fd10
         if (percentage > 120) {
           statusColor = 'bg-green-600';
           statusIcon = 'fa-trophy';
@@ -557,10 +621,7 @@
           statusTitle = 'You passed just in time';
         }
       } else if (passStatus === false) {
-<<<<<<< HEAD
-=======
         statusTitle = 'FAIL';
->>>>>>> f0eae98948b434e56c314765f900c032ac83fd10
         if (percentage < 50) {
           statusColor = 'bg-red-600';
           statusIcon = 'fa-times-circle';
@@ -600,7 +661,7 @@
         <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
           <div class="flex items-center mb-4">
             <div class="${statusColor} text-white p-3 rounded-full mr-3">
-              <i class="fas ${statusIcon}"></i>
+              <i class="fas {{ statusIcon }}"></i>
             </div>
             <h3 class="text-lg font-semibold">${statusTitle}</h3>
           </div>
@@ -609,8 +670,10 @@
               <span class="text-sm font-medium text-gray-700">Pass Chance</span>
               <span class="text-sm font-medium text-gray-700">${percentage}%</span>
             </div>
-            <div class="w-full bg-gray-200 rounded-full h-2.5">
-              <div class="${statusColor} h-2.5 rounded-full" style="width: ${percentage}%"></div>
+            <div class="w-full bg-gray-200 h-2dot5 rounded-full">
+
+              <div class="bg-green-600 h-2.5 rounded-full" style="width: 100%"></div>
+
             </div>
           </div>
           <p class="mb-6 text-gray-700">${message}</p>

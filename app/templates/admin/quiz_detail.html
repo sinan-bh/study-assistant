@@ -1,0 +1,336 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block admin_content %}
+<div class="bg-white rounded-lg p-6">
+  <div class="flex justify-between items-center mb-6">
+    <div>
+      <h2 class="text-2xl font-bold text-gray-900">{{ quiz.title }}</h2>
+      <p class="text-gray-600">{{ quiz.description }}</p>
+      {# <p class="text-sm text-gray-500 mt-1">Subject: {{ quiz.subject.name }}</p> #}
+    </div>
+    <button id="addQuestionBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Add Question</button>
+  </div>
+
+  <div class="mb-8">
+    <h3 class="text-xl font-semibold mb-4">Questions</h3>
+    {% if quiz.questions %}
+      <div class="space-y-6">
+        {% for question in quiz.questions %}
+          <div class="border rounded-lg p-4 bg-gray-50">
+            <div class="flex justify-between items-start mb-3">
+              <h4 class="text-lg font-medium">{{ loop.index }}. {{ question.question_text }}</h4>
+              <div>
+                <button class="text-green-600 hover:text-green-800 mr-3 edit-question" 
+                        data-id="{{ question.id }}" 
+                        data-text="{{ question.question_text }}">Edit</button>
+                <button class="text-red-600 hover:text-red-800 delete-question" 
+                        data-id="{{ question.id }}">Delete</button>
+              </div>
+            </div>
+            
+            <div class="ml-4 space-y-2">
+              {% for option in question.options %}
+                <div class="flex items-center">
+                  <span class="w-6">{{ loop.index }}.</span>
+                  <span class="flex-grow text-black">{{ option.option_text }}</span>
+                  {% if option.is_correct %}
+                    <span class="text-green-600 font-medium ml-2">(Correct)</span>
+                  {% endif %}
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-gray-500 text-center py-8">No questions added yet</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Add Question Modal -->
+<div id="addQuestionModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center">
+  <div class="bg-white rounded-lg p-8 max-w-lg w-full">
+    <div class="flex justify-between items-center mb-6">
+      <h3 class="text-xl font-bold">Add New Question</h3>
+      <button class="close-modal text-gray-500 hover:text-gray-700">&times;</button>
+    </div>
+    <form id="addQuestionForm">
+      <div class="mb-4">
+        <label for="questionText" class="block text-gray-700 mb-2">Question Text</label>
+        <textarea id="questionText" name="question_text" class="w-full border rounded px-3 py-2" rows="2" required></textarea>
+      </div>
+      
+      <div class="mb-4">
+        <h4 class="text-gray-700 mb-2">Options (select one correct answer)</h4>
+        <div class="space-y-3">
+          {% for i in range(3) %}
+            <div class="flex items-center">
+              <input type="radio" name="correct_option" value="{{ i }}" id="option{{ i }}_correct" class="mr-2" {% if i == 0 %}checked{% endif %}>
+              <input type="text" name="option{{ i }}" class="flex-grow border rounded px-3 py-2" placeholder="Option {{ i+1 }}" required>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+      
+      <div class="flex justify-end">
+        <button type="button" class="close-modal bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded mr-2">Cancel</button>
+        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Save Question</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Question Modal -->
+<div id="editQuestionModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center">
+  <div class="bg-white rounded-lg p-8 max-w-lg w-full">
+    <div class="flex justify-between items-center mb-6">
+      <h3 class="text-xl font-bold">Edit Question</h3>
+      <button class="close-modal text-gray-500 hover:text-gray-700">&times;</button>
+    </div>
+    <form id="editQuestionForm">
+      <input type="hidden" id="editQuestionId" name="question_id">
+      <div class="mb-4">
+        <label for="editQuestionText" class="block text-gray-700 mb-2">Question Text</label>
+        <textarea id="editQuestionText" name="text" class="w-full border rounded px-3 py-2" rows="2" required></textarea>
+      </div>
+      
+      <div class="mb-4">
+        <h4 class="text-gray-700 mb-2">Options (select one correct answer)</h4>
+        <div id="editOptionsContainer" class="space-y-3">
+          <!-- Options will be populated dynamically -->
+        </div>
+      </div>
+      
+      <div class="flex justify-end">
+        <button type="button" class="close-modal bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded mr-2">Cancel</button>
+        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Update Question</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Delete Question Modal -->
+<div id="deleteQuestionModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center">
+  <div class="bg-white rounded-lg p-8 max-w-md w-full">
+    <div class="flex justify-between items-center mb-6">
+      <h3 class="text-xl font-bold">Delete Question</h3>
+      <button class="close-modal text-gray-500 hover:text-gray-700">&times;</button>
+    </div>
+    <p class="mb-6">Are you sure you want to delete this question? This action cannot be undone.</p>
+    <form id="deleteQuestionForm">
+      <input type="hidden" id="deleteQuestionId" name="question_id">
+      <div class="flex justify-end">
+        <button type="button" class="close-modal bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded mr-2">Cancel</button>
+        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">Delete</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Add Question Modal
+    const addQuestionBtn = document.getElementById('addQuestionBtn');
+    const addQuestionModal = document.getElementById('addQuestionModal');
+    const addQuestionForm = document.getElementById('addQuestionForm');
+    
+    // Edit Question Modal
+    const editQuestionModal = document.getElementById('editQuestionModal');
+    const editQuestionForm = document.getElementById('editQuestionForm');
+    const editButtons = document.querySelectorAll('.edit-question');
+    
+    // Delete Question Modal
+    const deleteQuestionModal = document.getElementById('deleteQuestionModal');
+    const deleteQuestionForm = document.getElementById('deleteQuestionForm');
+    const deleteButtons = document.querySelectorAll('.delete-question');
+    
+    // Close Modal Buttons
+    const closeButtons = document.querySelectorAll('.close-modal');
+    
+    // Open Add Question Modal
+    addQuestionBtn.addEventListener('click', function() {
+      addQuestionModal.classList.remove('hidden');
+    });
+    
+    // Open Edit Question Modal
+    editButtons.forEach(button => {
+      button.addEventListener('click', function() {
+        const id = this.getAttribute('data-id');
+        const text = this.getAttribute('data-text');
+        
+        document.getElementById('editQuestionId').value = id;
+        document.getElementById('editQuestionText').value = text;
+        
+        // Fetch question options
+        fetch(`/admin/questions/${id}/options`)
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              const optionsContainer = document.getElementById('editOptionsContainer');
+              optionsContainer.innerHTML = '';
+              
+              data.options.forEach((option, index) => {
+                const optionDiv = document.createElement('div');
+                optionDiv.className = 'flex items-center';
+                optionDiv.innerHTML = `
+                  <input type="radio" name="edit_correct_option" value="${index}" id="edit_option${index}_correct" class="mr-2" ${option.is_correct ? 'checked' : ''}>
+                  <input type="text" name="edit_option${index}" class="flex-grow border rounded px-3 py-2" value="${option.text}" required>
+                  <input type="hidden" name="edit_option${index}_id" value="${option.id}">
+                `;
+                optionsContainer.appendChild(optionDiv);
+              });
+              
+              editQuestionModal.classList.remove('hidden');
+            } else {
+              alert('Error: ' + data.error);
+            }
+          })
+          .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred. Please try again.');
+          });
+      });
+    });
+    
+    // Open Delete Question Modal
+    deleteButtons.forEach(button => {
+      button.addEventListener('click', function() {
+        const id = this.getAttribute('data-id');
+        document.getElementById('deleteQuestionId').value = id;
+        deleteQuestionModal.classList.remove('hidden');
+      });
+    });
+    
+    // Close Modals
+    closeButtons.forEach(button => {
+      button.addEventListener('click', function() {
+        addQuestionModal.classList.add('hidden');
+        editQuestionModal.classList.add('hidden');
+        deleteQuestionModal.classList.add('hidden');
+      });
+    });
+    
+    // Submit Add Question Form
+    addQuestionForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const formData = {
+        question_text: document.getElementById('questionText').value,
+        quiz_id: {{ quiz.id }},
+        options: [
+          {
+            option_text: document.querySelector('input[name="option0"]').value,
+            is_correct: document.querySelector('input[name="correct_option"]:checked').value === '0'
+          },
+          {
+            option_text: document.querySelector('input[name="option1"]').value,
+            is_correct: document.querySelector('input[name="correct_option"]:checked').value === '1'
+          },
+          {
+            option_text: document.querySelector('input[name="option2"]').value,
+            is_correct: document.querySelector('input[name="correct_option"]:checked').value === '2'
+          }
+        ]
+      };
+      
+      fetch('/admin/quiz/questions/add', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+      })
+      .then(response => {
+        if (!response.ok) {
+          return response.json().then(data => {
+            throw new Error(data.error || 'Failed to add question');
+          });
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (data.success) {
+          window.location.reload();
+        } else {
+          alert('Error: ' + data.error);
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred. Please try again.');
+      });
+    });
+    
+    // Submit Edit Question Form
+    editQuestionForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const questionId = document.getElementById('editQuestionId').value;
+      const formData = {
+        question_text: document.getElementById('editQuestionText').value,
+        options: []
+      };
+      
+      // Get options data
+      const optionInputs = document.querySelectorAll('input[name^="edit_option"]');
+      const correctOption = document.querySelector('input[name="edit_correct_option"]:checked').value;
+      
+      for (let i = 0; i < optionInputs.length; i += 2) {
+        const index = i / 2;
+        formData.options.push({
+          id: document.querySelector(`input[name="edit_option${index}_id"]`).value,
+          option_text: document.querySelector(`input[name="edit_option${index}"]`).value,
+          is_correct: correctOption == index
+        });
+      }
+      
+      fetch(`/admin/questions/${questionId}/edit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          window.location.reload();
+        } else {
+          alert('Error: ' + data.error);
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred. Please try again.');
+      });
+    });
+    
+    // Submit Delete Question Form
+    deleteQuestionForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const questionId = document.getElementById('deleteQuestionId').value;
+      
+      fetch(`/admin/questions/${questionId}/delete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          window.location.reload();
+        } else {
+          alert('Error: ' + data.error);
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred. Please try again.');
+      });
+    });
+  });
+</script>
+{% endblock %}

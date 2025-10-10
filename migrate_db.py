@@ -75,6 +75,50 @@ def migrate_database():
             else:
                 print("subjects table does not exist in this database, skipping")
             
+            # Create quizzes table if it doesn't exist
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='quizzes'")
+            if not cursor.fetchone():
+                cursor.execute('''
+                CREATE TABLE quizzes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title VARCHAR(255) NOT NULL,
+                    description TEXT,
+                    subject_id INTEGER,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    is_active BOOLEAN DEFAULT 1,
+                    FOREIGN KEY (subject_id) REFERENCES subjects (id)
+                )
+                ''')
+                print("Created quizzes table")
+            
+            # Create quiz_questions table if it doesn't exist
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='quiz_questions'")
+            if not cursor.fetchone():
+                cursor.execute('''
+                CREATE TABLE quiz_questions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    quiz_id INTEGER NOT NULL,
+                    text TEXT NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (quiz_id) REFERENCES quizzes (id)
+                )
+                ''')
+                print("Created quiz_questions table")
+            
+            # Create quiz_options table if it doesn't exist
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='quiz_options'")
+            if not cursor.fetchone():
+                cursor.execute('''
+                CREATE TABLE quiz_options (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    question_id INTEGER NOT NULL,
+                    text TEXT NOT NULL,
+                    is_correct BOOLEAN NOT NULL DEFAULT 0,
+                    FOREIGN KEY (question_id) REFERENCES quiz_questions (id)
+                )
+                ''')
+                print("Created quiz_options table")
+            
             conn.commit()
             conn.close()
             print(f"Migration completed for {db_path}")
