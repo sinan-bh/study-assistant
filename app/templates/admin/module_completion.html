@@ -1,0 +1,285 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}Module Completion{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-2xl font-bold mb-6">Module & Topic Completion Tracking</h1>
+    
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold">Filter Options</h2>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div>
+                <label for="user-filter" class="block text-sm font-medium text-gray-700 mb-1">User</label>
+                <select id="user-filter" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                    <option value="">All Users</option>
+                    {% for user in users %}
+                    <option value="{{ user.id }}">{{ user.username }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="subject-filter" class="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+                <select id="subject-filter" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                    <option value="">All Subjects</option>
+                </select>
+            </div>
+            <div>
+                <label for="completion-filter" class="block text-sm font-medium text-gray-700 mb-1">Completion Status</label>
+                <select id="completion-filter" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                    <option value="">All</option>
+                    <option value="completed">Completed</option>
+                    <option value="incomplete">Incomplete</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-semibold mb-4">Module Completion Status</h2>
+        
+        <div id="modules-container">
+            <div class="animate-pulse">
+                <div class="h-6 bg-gray-200 rounded w-3/4 mb-4"></div>
+                <div class="h-32 bg-gray-200 rounded mb-4"></div>
+                <div class="h-6 bg-gray-200 rounded w-1/2 mb-4"></div>
+                <div class="h-32 bg-gray-200 rounded"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Module Details Modal -->
+<div id="moduleDetailsModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+        <div class="flex justify-between items-center border-b pb-3">
+            <h3 class="text-lg font-semibold text-gray-800" id="modal-title">Module Details</h3>
+            <button id="closeModalBtn" class="text-gray-400 hover:text-gray-500">
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <div class="mt-4" id="modal-content">
+            <h4 class="font-medium text-gray-800 mb-2">Topics</h4>
+            <div id="topics-list" class="space-y-2 max-h-96 overflow-y-auto">
+                <!-- Topics will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initial data load
+        loadModuleData();
+        
+        // Event listeners for filters
+        document.getElementById('user-filter').addEventListener('change', loadModuleData);
+        document.getElementById('subject-filter').addEventListener('change', loadModuleData);
+        document.getElementById('completion-filter').addEventListener('change', loadModuleData);
+        
+        // Load subjects based on selected user
+        document.getElementById('user-filter').addEventListener('change', function() {
+            const userId = this.value;
+            loadSubjects(userId);
+        });
+        
+        // Modal close button
+        document.getElementById('closeModalBtn').addEventListener('click', function() {
+            document.getElementById('moduleDetailsModal').classList.add('hidden');
+        });
+        
+        // Load all subjects initially
+        loadSubjects('');
+    });
+    
+    function loadSubjects(userId) {
+        fetch(`/api/admin/subjects?user_id=${userId}`)
+            .then(response => response.json())
+            .then(data => {
+                const subjectFilter = document.getElementById('subject-filter');
+                // Clear existing options except the first one
+                while (subjectFilter.options.length > 1) {
+                    subjectFilter.remove(1);
+                }
+                
+                // Add new options
+                data.forEach(subject => {
+                    const option = document.createElement('option');
+                    option.value = subject.id;
+                    option.textContent = subject.name;
+                    subjectFilter.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Error loading subjects:', error));
+    }
+    
+    function loadModuleData() {
+        const userId = document.getElementById('user-filter').value;
+        const subjectId = document.getElementById('subject-filter').value;
+        const completionStatus = document.getElementById('completion-filter').value;
+        
+        const url = `/api/admin/module-completion?user_id=${userId}&subject_id=${subjectId}&status=${completionStatus}`;
+        
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                const modulesContainer = document.getElementById('modules-container');
+                modulesContainer.innerHTML = '';
+                
+                if (data.length === 0) {
+                    modulesContainer.innerHTML = '<p class="text-gray-500 text-center py-8">No modules found matching the selected filters.</p>';
+                    return;
+                }
+                
+                data.forEach(subject => {
+                    const subjectElement = document.createElement('div');
+                    subjectElement.className = 'mb-8';
+                    
+                    const subjectHeader = document.createElement('div');
+                    subjectHeader.className = 'flex justify-between items-center mb-3';
+                    subjectHeader.innerHTML = `
+                        <h3 class="text-lg font-medium">${subject.name}</h3>
+                        <span class="text-sm text-gray-500">
+                            ${subject.completed_modules}/${subject.total_modules} modules completed
+                        </span>
+                    `;
+                    
+                    const progressBar = document.createElement('div');
+                    const progressPercent = (subject.completed_modules / subject.total_modules) * 100;
+                    progressBar.className = 'w-full bg-gray-200 rounded-full h-2.5 mb-4';
+                    progressBar.innerHTML = `
+                        <div class="bg-blue-600 h-2.5 rounded-full" style="width: ${progressPercent}%"></div>
+                    `;
+                    
+                    const modulesList = document.createElement('div');
+                    modulesList.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4';
+                    
+                    subject.modules.forEach(module => {
+                        const moduleCard = document.createElement('div');
+                        moduleCard.className = `p-4 border rounded-lg ${module.completed_topics === module.total_topics ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`;
+                        
+                        const topicProgress = (module.completed_topics / module.total_topics) * 100;
+                        
+                        moduleCard.innerHTML = `
+                            <div class="flex justify-between items-center mb-2">
+                                <h4 class="font-medium">Module ${module.module_number}</h4>
+                                <span class="text-sm ${module.completed_topics === module.total_topics ? 'text-green-600' : 'text-gray-500'}">
+                                    ${module.completed_topics}/${module.total_topics} topics
+                                </span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-1.5 mb-2">
+                                <div class="bg-blue-600 h-1.5 rounded-full" style="width: ${topicProgress}%"></div>
+                            </div>
+                            <button class="view-topics-btn mt-2 text-sm text-blue-600 hover:text-blue-800" 
+                                    data-module-id="${module.id}" data-module-number="${module.module_number}">
+                                View Topics
+                            </button>
+                        `;
+                        
+                        modulesList.appendChild(moduleCard);
+                    });
+                    
+                    subjectElement.appendChild(subjectHeader);
+                    subjectElement.appendChild(progressBar);
+                    subjectElement.appendChild(modulesList);
+                    modulesContainer.appendChild(subjectElement);
+                });
+                
+                // Add event listeners to view topics buttons
+                document.querySelectorAll('.view-topics-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const moduleId = this.getAttribute('data-module-id');
+                        const moduleNumber = this.getAttribute('data-module-number');
+                        showModuleDetails(moduleId, moduleNumber);
+                    });
+                });
+            })
+            .catch(error => {
+                console.error('Error loading module data:', error);
+                document.getElementById('modules-container').innerHTML = 
+                    '<p class="text-red-500 text-center py-8">Error loading module data. Please try again.</p>';
+            });
+    }
+    
+    function showModuleDetails(moduleId, moduleNumber) {
+        // Update modal title
+        document.getElementById('modal-title').textContent = `Module ${moduleNumber} Topics`;
+        
+        // Show loading state
+        document.getElementById('topics-list').innerHTML = `
+            <div class="animate-pulse">
+                <div class="h-4 bg-gray-200 rounded w-3/4 mb-3"></div>
+                <div class="h-4 bg-gray-200 rounded w-1/2 mb-3"></div>
+                <div class="h-4 bg-gray-200 rounded w-2/3 mb-3"></div>
+            </div>
+        `;
+        
+        // Show modal
+        document.getElementById('moduleDetailsModal').classList.remove('hidden');
+        
+        // Get the selected user ID
+        const userId = document.getElementById('user-filter').value;
+        
+        // Fetch topics data with user ID parameter
+        fetch(`/api/admin/module-topics/${moduleId}?user_id=${userId}`)
+            .then(response => response.json())
+            .then(topics => {
+                const topicsList = document.getElementById('topics-list');
+                topicsList.innerHTML = '';
+                
+                if (topics.length === 0) {
+                    topicsList.innerHTML = '<p class="text-gray-500 text-center py-4">No topics found for this module.</p>';
+                    return;
+                }
+                
+                topics.forEach(topic => {
+                    const topicElement = document.createElement('div');
+                    topicElement.className = `p-3 border rounded-md ${topic.is_completed ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`;
+                    
+                    let userInfoHtml = '';
+                    if (topic.user) {
+                        userInfoHtml = `
+                            <div class="mt-2 pt-2 border-t border-gray-200">
+                                <p class="text-sm text-gray-600">
+                                    <span class="font-medium">User:</span> ${topic.user.username} (${topic.user.email})
+                                </p>
+                            </div>
+                        `;
+                    }
+                    
+                    topicElement.innerHTML = `
+                        <div class="flex items-center">
+                            <div class="mr-3">
+                                ${topic.is_completed ? 
+                                    '<svg class="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>' : 
+                                    '<svg class="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" clip-rule="evenodd"></path></svg>'
+                                }
+                            </div>
+                            <div class="flex-1">
+                                <h5 class="font-medium">${topic.name}</h5>
+                                ${topic.description ? `<p class="text-sm text-gray-600">${topic.description}</p>` : ''}
+                                ${userInfoHtml}
+                            </div>
+                        </div>
+                    `;
+                    
+                    topicsList.appendChild(topicElement);
+                });
+            })
+            .catch(error => {
+                console.error('Error loading topics:', error);
+                document.getElementById('topics-list').innerHTML = 
+                    '<p class="text-red-500 text-center py-4">Error loading topics. Please try again.</p>';
+            });
+    }
+</script>
+{% endblock %}

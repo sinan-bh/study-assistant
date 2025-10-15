@@ -90,6 +90,59 @@ def migrate_database():
                 )
                 ''')
                 print("Created quizzes table")
+                
+            # Create exam_modes table if it doesn't exist
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='exam_modes'")
+            if not cursor.fetchone():
+                cursor.execute('''
+                CREATE TABLE exam_modes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    name VARCHAR(100) NOT NULL,
+                    start_date DATETIME NOT NULL,
+                    end_date DATETIME NOT NULL,
+                    total_modules INTEGER DEFAULT 1,
+                    current_module INTEGER DEFAULT 1,
+                    is_active BOOLEAN DEFAULT 1,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users (id)
+                )
+                ''')
+                print("Created exam_modes table")
+                
+            # Create exam_modules table if it doesn't exist
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='exam_modules'")
+            if not cursor.fetchone():
+                cursor.execute('''
+                CREATE TABLE exam_modules (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    exam_id INTEGER NOT NULL,
+                    module_number INTEGER NOT NULL,
+                    start_time DATETIME NOT NULL,
+                    revision_start_time DATETIME NOT NULL,
+                    revision_end_time DATETIME NOT NULL,
+                    is_completed BOOLEAN DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (exam_id) REFERENCES exam_modes (id)
+                )
+                ''')
+                print("Created exam_modules table")
+                
+            # Create exam_topics table if it doesn't exist
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='exam_topics'")
+            if not cursor.fetchone():
+                cursor.execute('''
+                CREATE TABLE exam_topics (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    module_id INTEGER NOT NULL,
+                    name VARCHAR(100) NOT NULL,
+                    description TEXT,
+                    is_revised BOOLEAN DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (module_id) REFERENCES exam_modules (id)
+                )
+                ''')
+                print("Created exam_topics table")
             
             # Create quiz_questions table if it doesn't exist
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='quiz_questions'")

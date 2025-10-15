@@ -1,0 +1,2107 @@
+{% extends 'base.html' %} {% block title %} Exam Mode {% endblock %} {% block
+content %}
+<div class="min-h-screen py-8 px-4">
+  <div
+    class="container mx-auto max-w-7xl glass-container rounded-3xl shadow-2xl p-8 md:p-10"
+  >
+    <div
+      class="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4"
+    >
+      <div>
+        <h1 class="text-4xl md:text-5xl font-extrabold gradient-text mb-2">
+          Exam Mode
+        </h1>
+        <p class="text-lg text-gray-600">
+          Prepare for your exams with structured study modules
+        </p>
+      </div>
+      <div>
+        <button
+          id="addSubjectBtn"
+          class="bg-[#6a0dad] text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 flex items-center gap-2 w-full md:w-auto justify-center"
+        >
+          <i class="fas fa-plus"></i>
+          <span>Add Subject</span>
+        </button>
+      </div>
+    </div>
+
+    <div id="examSubjectsContainer">
+      <!-- Exam subjects will be loaded here -->
+      <div
+        id="noSubjectsMessage"
+        class="text-center py-16 gradient-bg-empty rounded-2xl"
+        {%
+        if
+        exam_subjects
+        and
+        exam_subjects|length
+      >
+        0 %}style="display:none"{% endif %}>
+        <p class="text-xl text-gray-700 font-medium">
+          No exam subjects added yet. Click "Add Subject" to get started.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Subject Modal -->
+<div
+  id="addSubjectModal"
+  class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+>
+  <div
+    class="bg-white rounded-3xl shadow-2xl max-w-md w-full transform transition-all"
+  >
+    <div class="bg-purple-600 text-white rounded-t-3xl px-6 py-5">
+      <div class="flex items-center justify-between">
+        <h5 class="text-xl font-bold">Add Exam Subject</h5>
+        <button
+          type="button"
+          class="text-white hover:text-gray-200 text-2xl"
+          onclick="closeModal('addSubjectModal')"
+        >
+          <span>&times;</span>
+        </button>
+      </div>
+    </div>
+    <div class="p-6">
+      <form
+        id="addSubjectForm"
+        action="{{ url_for('main.create_exam_subject') }}"
+        method="POST"
+      >
+        <div class="mb-4">
+          <label
+            for="subjectName"
+            class="block text-gray-700 font-semibold mb-2"
+            >Subject Name</label
+          >
+          <input
+            type="text"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-200 transition-all outline-none"
+            id="subjectName"
+            name="name"
+            required
+          />
+        </div>
+        <div class="mb-4">
+          <label for="startDate" class="block text-gray-700 font-semibold mb-2"
+            >Start Date</label
+          >
+          <input
+            type="date"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-200 transition-all outline-none"
+            id="startDate"
+            name="start_date"
+            required
+          />
+        </div>
+        <div class="mb-4">
+          <label for="endDate" class="block text-gray-700 font-semibold mb-2"
+            >End Date</label
+          >
+          <input
+            type="date"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-200 transition-all outline-none"
+            id="endDate"
+            name="end_date"
+            required
+          />
+        </div>
+        <div class="mb-4">
+          <label
+            for="totalModules"
+            class="block text-gray-700 font-semibold mb-2"
+            >Total Modules</label
+          >
+          <input
+            type="number"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-200 transition-all outline-none"
+            id="totalModules"
+            name="total_modules"
+            min="1"
+            value="1"
+            required
+          />
+        </div>
+        <div class="px-0 py-4 flex gap-3 justify-end">
+          <button
+            type="button"
+            class="px-6 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold rounded-xl transition-all"
+            onclick="closeModal('addSubjectModal')"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            class="bg-[#6a0dad] text-white px-6 py-2 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"
+            id="createSubjectBtn"
+          >
+            Create
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Removed duplicate placeholder modals to avoid duplicate IDs -->
+
+<!-- Module Todo Modal -->
+<div
+  class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+  id="moduleTodoModal"
+>
+  <div
+    class="bg-white rounded-3xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden transform transition-all"
+  >
+    <div class="bg-purple-600 text-white px-6 py-5">
+      <div class="flex items-center justify-between">
+        <h5 class="text-xl font-bold">Module Topics</h5>
+        <button
+          type="button"
+          class="text-white hover:text-gray-200 text-2xl"
+          onclick="closeModal('moduleTodoModal')"
+        >
+          <span>&times;</span>
+        </button>
+      </div>
+    </div>
+    <div class="p-6 overflow-y-auto max-h-[60vh]">
+      <div class="mb-4">
+        <label
+          for="moduleDuration"
+          class="block text-gray-700 font-semibold mb-2"
+          >Total study minutes</label
+        >
+        <div class="flex gap-2 items-center">
+          <input
+            type="number"
+            min="1"
+            id="moduleDuration"
+            class="w-32 px-4 py-2 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-200 transition-all outline-none"
+            placeholder="e.g. 45"
+          />
+          <button
+            type="button"
+            id="saveModuleDurationBtn"
+            class="bg-purple-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-purple-700 transition-colors"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+      <div id="topicsList" class="mb-4">
+        <!-- Topics will be loaded here -->
+      </div>
+      <form id="addTopicForm">
+        <div class="flex gap-2">
+          <input
+            type="text"
+            class="flex-1 px-4 py-2 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-200 transition-all outline-none"
+            id="topicName"
+            placeholder="Add new topic..."
+            required
+          />
+          <button
+            type="submit"
+            class="bg-purple-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-purple-700 transition-colors"
+          >
+            Add
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Start Session Modal -->
+<div
+  class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+  id="startSessionModal"
+>
+  <div
+    class="bg-white rounded-3xl shadow-2xl max-w-md w-full transform transition-all"
+  >
+    <div class="bg-green-600 text-white px-6 py-5">
+      <div class="flex items-center justify-between">
+        <h5 class="text-xl font-bold">Start Study Session</h5>
+        <button
+          type="button"
+          class="text-white hover:text-gray-200 text-2xl"
+          onclick="closeModal('startSessionModal')"
+        >
+          <span>&times;</span>
+        </button>
+      </div>
+    </div>
+    <div class="p-6">
+      <form id="startSessionForm">
+        <div class="mb-4">
+          <label
+            for="sessionEndTime"
+            class="block text-gray-700 font-semibold mb-2"
+            >Session End Time</label
+          >
+          <input
+            type="datetime-local"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-200 transition-all outline-none"
+            id="sessionEndTime"
+            required
+          />
+        </div>
+        <div class="flex gap-3 justify-end">
+          <button
+            type="button"
+            class="px-6 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold rounded-xl transition-all"
+            onclick="closeModal('startSessionModal')"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            class="bg-green-600 text-white px-6 py-2 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"
+          >
+            Start Session
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Timer Alert Modal -->
+<div
+  class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+  id="timerAlertModal"
+>
+  <div
+    class="bg-white rounded-3xl shadow-2xl max-w-md w-full transform transition-all"
+  >
+    <div class="bg-red-600 text-white px-6 py-5">
+      <div class="flex items-center justify-between">
+        <h5 class="text-xl font-bold">Time's Up!</h5>
+      </div>
+    </div>
+    <div class="p-6 text-center">
+      <div class="mb-4">
+        <i class="fas fa-bell text-red-500 text-4xl mb-4"></i>
+        <p class="text-gray-700 text-lg font-semibold">
+          Your study session has ended!
+        </p>
+      </div>
+      <button
+        id="stopAlarmBtn"
+        class="bg-red-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all w-full"
+      >
+        Stop Alarm
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Audio element for ringtone -->
+<audio id="alarmSound" loop>
+  <source
+    src="{{ url_for('static', filename='reminder_songs/user_4_tera-honay-laga-hon-28-15126-66777.mp3') }}"
+    type="audio/mpeg"
+  />
+  Your browser does not support the audio element.
+</audio>
+
+<script>
+  let revisionCountdownIntervals = {};
+    // Embedded server-rendered data (no API fetch for initial render)
+    window.__EXAM_SUBJECTS__ = {{ (exam_subjects or []) | tojson | safe }}
+
+      // Shared state
+      var currentModuleId = null;
+
+      // Modal helper functions
+      function closeModal(modalId) {
+        document.getElementById(modalId).classList.add('hidden')
+      }
+
+      function openModal(modalId) {
+        document.getElementById(modalId).classList.remove('hidden')
+      }
+
+      // Add Subject Button
+      document.getElementById('addSubjectBtn').addEventListener('click', function () {
+        openModal('addSubjectModal')
+      })
+
+      // No need for this event listener anymore since we're using direct form submission
+
+      // Set today's date as default for start date
+      document.addEventListener('DOMContentLoaded', function () {
+        const today = new Date().toISOString().split('T')[0]
+        document.getElementById('startDate').value = today
+
+        // Set end date to 30 days from today
+        const endDate = new Date()
+        endDate.setDate(endDate.getDate() + 30)
+        document.getElementById('endDate').value = endDate.toISOString().split('T')[0]
+      })
+
+    // Local HTML escape (decoupled from external file)
+    function __escapeHtmlLocal__(unsafe) {
+      return String(unsafe || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;')
+    }
+
+    // Local card builder to avoid timing/name collisions
+    function buildSubjectCard(subject) {
+      const card = document.createElement("div");
+      card.className = "bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-200 hover:shadow-xl transition-all duration-300";
+
+      const startDate = new Date(subject.start_date);
+      const endDate = new Date(subject.end_date);
+      const today = new Date();
+      const totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+      const daysPassed = Math.ceil((today - startDate) / (1000 * 60 * 60 * 24));
+      const progress = Math.min(Math.max((daysPassed / totalDays) * 100, 0), 100);
+
+      card.innerHTML = `
+          <div class="flex justify-between items-start mb-4">
+            <h3 class="text-xl font-bold text-gray-800">${__escapeHtmlLocal__(subject.name)}</h3>
+            <button type="button" class="text-red-500 hover:text-red-700 delete-subject" data-id="${subject.id}">
+                  <i class="fas fa-trash"></i>
+              </button>
+          </div>
+
+          <div class="mb-4">
+              <div class="flex justify-between text-sm text-gray-600 mb-2">
+                  <span>${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}</span>
+                  <span>${Math.round(progress)}%</span>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div class="bg-purple-600 h-2 rounded-full" style="width: ${progress}%"></div>
+              </div>
+          </div>
+
+          <div class="mb-4">
+              <h4 class="text-md font-semibold text-gray-700 mb-2">Modules:</h4>
+              <div class="space-y-3">
+                  ${subject.modules.map((module) => `
+                      <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                          <div class="flex justify-between items-center mb-2">
+                              <h5 class="font-semibold text-gray-800">Module ${module.module_number}</h5>
+                         <div class="flex gap-2 items-center">
+                                <button class="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors todo-btn" data-module-id="${module.id}" onclick="showModuleTodo(${module.id})">
+                                      <i class="fas fa-list-ul mr-1"></i>Add Topics
+                                  </button>
+                                  <button class="px-3 py-1 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors start-btn" data-module-id="${module.id}" id="action-btn-${module.id}" onclick="startExamMode(${module.id})">
+                                      <i class="fas fa-play mr-1"></i><span id="btn-text-${module.id}">Start</span>
+                                  </button>
+                             <span class="text-xs text-gray-500" id="countdown-${module.id}"></span>
+                              </div>
+                          </div>
+                          <div class="topics-container" id="topics-preview-${module.id}">
+                              ${module.topics && module.topics.length > 0 ?
+                                  module.topics.map(topic => `
+                                      <div class="flex items-center text-sm text-gray-600 py-1">
+                                          <i class="fas ${topic.is_completed ? 'fa-check-circle text-green-500' : 'fa-circle'} mr-2"></i>
+                                        <span class="${topic.is_completed ? 'line-through' : ''}">${__escapeHtmlLocal__(topic.name)}</span>
+                                      </div>
+                                  `).join('') :
+                                  '<p class="text-gray-500 text-sm">No topics added yet</p>'
+                              }
+                          </div>
+                      </div>
+                  `).join('')}
+              </div>
+          </div>
+      `;
+
+      // Add event listeners
+      card.querySelector(".delete-subject").addEventListener("click", function () {
+        if (!confirm("Are you sure you want to delete this subject? This action cannot be undone.")) {
+          return;
+        }
+        fetch(`/delete-exam-subject/${subject.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({}).toString()
+        })
+        .then(function (response) {
+          if (response.redirected) {
+            window.location.href = response.url;
+            return;
+          }
+          if (response.ok) {
+            window.location.reload();
+            return;
+          }
+          throw new Error('Failed to delete');
+        })
+        .catch(function (err) {
+          console.error('Delete failed', err);
+          alert('Failed to delete exam subject. Please try again.');
+        });
+      });
+
+    card.querySelectorAll(".todo-btn").forEach((btn) => {
+        btn.addEventListener("click", function () {
+            const moduleId = this.getAttribute("data-module-id");
+            console.log("todo-btn clicked", moduleId);
+            //if (window && typeof window.openTodoModal === 'function') {
+              //window.openTodoModal(moduleId);
+            //}
+            currentModuleId = moduleId;
+            const saveBtn = document.getElementById("saveModuleDurationBtn");
+            if (saveBtn && saveBtn.dataset) {
+              saveBtn.dataset.moduleId = String(moduleId);
+            }
+            // Load saved duration into input
+            const key = `exam_module_duration_${moduleId}`;
+            const saved = localStorage.getItem(key);
+            const input = document.getElementById("moduleDuration");
+            if (input) input.value = saved ? parseInt(saved, 10) : "";
+            loadTopics(moduleId);
+            openModal("moduleTodoModal");
+        });
+    });
+     function loadTopics(moduleId) {
+      fetch(`/api/exam-modules/${moduleId}/topics`)
+        .then((response) => response.json())
+        .then((topics) => {
+          const topicsList = document.getElementById("topicsList");
+
+          if (topics.length === 0) {
+            topicsList.innerHTML =
+              '<p class="text-gray-500 text-center py-4">No topics added yet. Add a topic below.</p>';
+            return;
+          }
+
+          topicsList.innerHTML = "";
+
+          topics.forEach((topic) => {
+            const topicElement = document.createElement("div");
+            topicElement.className = `flex justify-between items-center p-3 border-b border-gray-200 last:border-b-0 ${
+              topic.is_completed ? "bg-green-50" : ""
+            }`;
+            topicElement.innerHTML = `
+                          <div class="flex items-center">
+                              <input type="checkbox" class="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 topic-checkbox"
+                                     id="topic-${topic.id}" data-topic-id="${
+              topic.id
+            }"
+                                     ${topic.is_completed ? "checked" : ""}>
+                              <label for="topic-${
+                                topic.id
+                              }" class="ml-3 text-sm font-medium ${
+              topic.is_completed ? "text-gray-500 line-through" : "text-gray-900"
+            }">
+                                  ${__escapeHtmlLocal__(topic.name)}
+                              </label>
+                          </div>
+                          <button class="text-red-500 hover:text-red-700 delete-topic" data-topic-id="${
+                            topic.id
+                          }">
+                              <i class="fas fa-times"></i>
+                          </button>
+                      `;
+            topicsList.appendChild(topicElement);
+          });
+
+           // Also update preview under the module card
+           const preview = document.getElementById('topics-preview-' + moduleId);
+           if (preview) {
+             preview.innerHTML = topics.length
+               ? topics
+                   .map(function (topic) {
+                     return (
+                       '<div class="flex items-center text-sm text-gray-600 py-1">' +
+                       '<i class="fas ' +
+                       (topic.is_completed ? 'fa-check-circle text-green-500' : 'fa-circle') +
+                       ' mr-2"></i>' +
+                       '<span class="' + (topic.is_completed ? 'line-through' : '') + '">' + __escapeHtmlLocal__(topic.name) + '</span>' +
+                       '</div>'
+                     );
+                   })
+                   .join('')
+               : '<p class="text-gray-500 text-sm">No topics added yet</p>';
+           }
+
+          // Add event listeners
+          document.querySelectorAll(".topic-checkbox").forEach((checkbox) => {
+            checkbox.addEventListener("change", function () {
+              const topicId = this.getAttribute("data-topic-id");
+              toggleTopicComplete(topicId);
+            });
+          });
+
+          document.querySelectorAll(".delete-topic").forEach((btn) => {
+            btn.addEventListener("click", function () {
+              const topicId = this.getAttribute("data-topic-id");
+              deleteTopic(topicId);
+            });
+          });
+        })
+        .catch((error) => {
+          console.error("Error loading topics:", error);
+          topicsList.innerHTML =
+            '<p class="text-red-500 text-center py-4">Error loading topics.</p>';
+        });
+    }
+
+     function addTopic() {
+      const nameInput = document.getElementById("topicName");
+      const name = nameInput.value.trim();
+
+      if (!name) {
+        alert("Please enter a topic name");
+        return;
+      }
+
+      fetch(`/api/exam-modules/${currentModuleId}/topics`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name: name }),
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Failed to add topic");
+          }
+          return response.json();
+        })
+        .then((topic) => {
+          nameInput.value = "";
+           // Reload modal topics and preview list
+           loadTopics(currentModuleId);
+        })
+        .catch((error) => {
+          console.error("Error adding topic:", error);
+          alert("Failed to add topic. Please try again.");
+        });
+    }
+
+    function toggleTopicComplete(topicId) {
+      fetch(`/api/exam-topics/${topicId}/toggle-complete`, {
+        method: "POST",
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Failed to update topic");
+          }
+          return response.json();
+        })
+        .then((topic) => {
+          // UI will be updated when topics are reloaded
+          loadTopics(currentModuleId);
+        })
+        .catch((error) => {
+          console.error("Error updating topic:", error);
+          alert("Failed to update topic. Please try again.");
+        });
+    }
+
+    function deleteTopic(topicId) {
+      if (!confirm("Are you sure you want to delete this topic?")) {
+        return;
+      }
+
+      fetch(`/api/exam-topics/${topicId}`, {
+        method: "DELETE",
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Failed to delete topic");
+          }
+          return response.json();
+        })
+        .then((data) => {
+          loadTopics(currentModuleId);
+        })
+        .catch((error) => {
+          console.error("Error deleting topic:", error);
+          alert("Failed to delete topic. Please try again.");
+        });
+    }
+
+      card.querySelectorAll(".start-btn").forEach((btn) => {
+         btn.addEventListener("click", function () {
+             const moduleId = this.getAttribute("data-module-id");
+             if (this.disabled) return;
+             if (window && typeof window.startModuleCountdown === 'function') {
+               window.startModuleCountdown(moduleId);
+             }
+         });
+     });
+
+    return card;
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      var addForm = document.getElementById('addTopicForm');
+      var addBtn = document.getElementById('confirmAddTopicBtn');
+      var showBtn = document.getElementById('showAddTopicBtn');
+      var cancelBtn = document.getElementById('cancelAddTopicBtn');
+      var row = document.getElementById('addTopicRow');
+
+      if (showBtn && row) {
+        showBtn.addEventListener('click', function () {
+          row.classList.remove('hidden');
+          document.getElementById('topicName')?.focus();
+        });
+      }
+
+      if (cancelBtn && row) {
+        cancelBtn.addEventListener('click', function () {
+          row.classList.add('hidden');
+          var input = document.getElementById('topicName');
+          if (input) input.value = '';
+        });
+      }
+
+      function handleAddTopic() {
+        if (typeof addTopic === 'function') {
+          addTopic();
+        }
+      }
+
+      if (addBtn) {
+        addBtn.addEventListener('click', function (e) {
+          e.preventDefault();
+          handleAddTopic();
+        });
+      }
+
+      if (addForm) {
+        addForm.addEventListener('submit', function (e) {
+          e.preventDefault();
+          handleAddTopic();
+        });
+      }
+    });
+    // Initial render from embedded data
+    document.addEventListener('DOMContentLoaded', function () {
+      (function renderInitialSubjects() {
+        const subjects = Array.isArray(window.__EXAM_SUBJECTS__) ? window.__EXAM_SUBJECTS__ : []
+        const container = document.getElementById('examSubjectsContainer')
+        const noSubjectsMessage = document.getElementById('noSubjectsMessage')
+        if (!subjects.length) {
+          if (noSubjectsMessage) noSubjectsMessage.style.display = 'block'
+          return
+        }
+        if (noSubjectsMessage) noSubjectsMessage.style.display = 'none'
+        container.innerHTML = ''
+        subjects.forEach(function (subject) {
+          const card = buildSubjectCard(subject)
+          container.appendChild(card)
+        })
+
+        // After cards render, restore any active countdowns
+       // After cards render, restore any active countdowns
+// After cards render, restore any active countdowns
+subjects.forEach(function (subject) {
+  (subject.modules || []).forEach(function (module) {
+    var endStr = localStorage.getItem(`exam_module_end_${module.id}`)
+    if (endStr) {
+      var endTime = parseInt(endStr, 10)
+      if (!isNaN(endTime) && endTime > Date.now()) {
+        // Rehydrate countdown without restarting timer logic
+        var el = document.getElementById(`countdown-${module.id}`)
+        var startBtn = document.querySelector(`.start-btn[data-module-id="${module.id}"]`)
+        if (startBtn) {
+          startBtn.disabled = true
+          startBtn.classList.add('opacity-60', 'cursor-not-allowed')
+        }
+        function updateExisting() {
+          var remainingMs = endTime - Date.now()
+          if (remainingMs <= 0) {
+            if (el) el.textContent = '00:00'
+            clearInterval(countdownIntervals[module.id])
+            // Clear persisted and re-enable button
+            localStorage.removeItem(`exam_module_end_${module.id}`)
+            if (startBtn) {
+              startBtn.disabled = false
+              startBtn.classList.remove('opacity-60', 'cursor-not-allowed')
+            }
+            return
+          }
+          var totalSeconds = Math.floor(remainingMs / 1000)
+          var mm = String(Math.floor(totalSeconds / 60)).padStart(2, '0')
+          var ss = String(totalSeconds % 60).padStart(2, '0')
+          if (el) el.textContent = `${mm}:${ss}`
+        }
+        updateExisting()
+        countdownIntervals[module.id] = setInterval(updateExisting, 1000)
+      } else {
+        // Cleanup stale end
+        localStorage.removeItem(`exam_module_end_${module.id}`)
+      }
+    }
+  })
+})
+      })()
+    })
+
+    // Event delegation fallback to ensure clicks are captured reliably
+    document.addEventListener('DOMContentLoaded', function () {
+      const container = document.getElementById('examSubjectsContainer')
+      if (!container) return
+      container.addEventListener('click', function (e) {
+        const btn = e.target && e.target.closest ? e.target.closest('.todo-btn') : null
+        if (!btn) return
+        const moduleId = btn.getAttribute('data-module-id')
+        console.log('todo-btn clicked', moduleId)
+        if (window && typeof window.openTodoModal === 'function') {
+          window.openTodoModal(moduleId)
+        }
+      })
+    })
+
+    // Hook up Add Topic form submit to inline handler
+    document.addEventListener('DOMContentLoaded', function () {
+      var addForm = document.getElementById('addTopicForm')
+      if (addForm) {
+        addForm.addEventListener('submit', function (e) {
+          e.preventDefault()
+          addTopic()
+        })
+      }
+    })
+
+    // Guaranteed opener used by inline onclick
+    function showModuleTodo(moduleId) {
+      try {
+        console.log('todo-btn clicked', moduleId)
+        window.currentModuleId = moduleId
+        var saveBtn = document.getElementById('saveModuleDurationBtn')
+        if (saveBtn && saveBtn.dataset) {
+          saveBtn.dataset.moduleId = String(moduleId)
+        }
+        var key = 'exam_module_duration_' + moduleId
+        var saved = localStorage.getItem(key)
+        var input = document.getElementById('moduleDuration')
+        if (input) input.value = saved ? parseInt(saved, 10) : ''
+        if (typeof loadTopics === 'function') loadTopics(moduleId)
+        openModal('moduleTodoModal')
+      } catch (e) {
+        console.error('showModuleTodo failed', e)
+      }
+    }
+    document.addEventListener("DOMContentLoaded", function () {
+      // Global variables
+      let currentModuleId = null;
+      let activeTimers = {};
+      let countdownIntervals = {};
+      const alarmSound = document.getElementById("alarmSound");
+
+      // Initial render handled by template via embedded data; no API call here
+
+      // Event listeners for form submission
+      document
+        .getElementById("addSubjectForm")
+        ?.addEventListener("submit", function (e) {
+          e.preventDefault();
+          createExamSubject();
+        });
+
+      document
+        .getElementById("addTopicForm")
+        ?.addEventListener("submit", function (e) {
+          e.preventDefault();
+          addTopic();
+        });
+
+      document
+        .getElementById("startSessionForm")
+        ?.addEventListener("submit", function (e) {
+          e.preventDefault();
+          startStudySession();
+        });
+
+      document
+        .getElementById("stopAlarmBtn")
+        ?.addEventListener("click", function () {
+          stopAlarm();
+          closeModal("timerAlertModal");
+        });
+
+      // Functions
+      // Removed loadExamSubjects (no API fetch)
+
+      function createSubjectCard(subject) {
+        const card = document.createElement("div");
+        card.className =
+          "bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-200 hover:shadow-xl transition-all duration-300";
+
+        const startDate = new Date(subject.start_date);
+        const endDate = new Date(subject.end_date);
+        const today = new Date();
+        const totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+        const daysPassed = Math.ceil((today - startDate) / (1000 * 60 * 60 * 24));
+        const progress = Math.min(Math.max((daysPassed / totalDays) * 100, 0), 100);
+
+        card.innerHTML = `
+                <div class="flex justify-between items-start mb-4">
+                    <h3 class="text-xl font-bold text-gray-800">${escapeHtml(
+                      subject.name
+                    )}</h3>
+                    <button class="text-red-500 hover:text-red-700 delete-subject" data-id="${
+                      subject.id
+                    }">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+
+                <div class="mb-4">
+                    <div class="flex justify-between text-sm text-gray-600 mb-2">
+                        <span>${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}</span>
+                        <span>${Math.round(progress)}%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-purple-600 h-2 rounded-full" style="width: ${progress}%"></div>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <h4 class="text-md font-semibold text-gray-700 mb-2">Subject Details:</h4>
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="mb-3 border-b pb-2">
+                            <p class="text-gray-800 font-medium">${escapeHtml(
+                              subject.name
+                            )}</p>
+                            <p class="text-sm text-gray-600">Period: ${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}</p>
+                        </div>
+                        <h5 class="text-sm font-semibold text-gray-700 mb-2">Modules (Todo):</h5>
+                        <ul class="space-y-2">
+                            ${subject.modules
+                              .map(
+                                (module) => `
+                                <li class="flex items-center p-2 border border-gray-200 rounded-md hover:bg-gray-50">
+                                    <div class="flex items-center">
+                                        <span class="inline-flex items-center justify-center w-6 h-6 mr-2 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">${module.module_number}</span>
+                                        <span class="text-gray-700 font-medium">Module ${module.module_number}</span>
+                                    </div>
+                                    <div class="ml-auto flex items-center">
+                                        <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full mr-2">Todo</span>
+                                        <button class="text-gray-500 hover:text-purple-700 todo-btn" data-module-id="${module.id}">
+                                            <i class="fas fa-check-circle"></i>
+                                        </button>
+                                    </div>
+                                </li>
+                            `
+                              )
+                              .join("")}
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="modules-container">
+                    ${subject.modules
+                      .map(
+                        (module) => `
+                        <div class="flex justify-between items-center py-3 border-b border-gray-100 last:border-b-0">
+                            <span class="font-medium">Module ${module.module_number}</span>
+                            <div class="flex gap-2">
+                                <button class="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors todo-btn" data-module-id="${module.id}">
+                                    <i class="fas fa-list-ul mr-1"></i>Add Topics
+                                </button>
+                                <button class="px-3 py-1 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors start-btn" data-module-id="${module.id}">
+                                    <i class="fas fa-play mr-1"></i>Start
+                                </button>
+                            </div>
+                        </div>
+                    `
+                      )
+                      .join("")}
+                </div>
+            `;
+
+        // Add event listeners
+        card
+          .querySelector(".delete-subject")
+          .addEventListener("click", function () {
+          deleteExamSubject(subject.id);
+      });
+
+      card.querySelectorAll(".todo-btn").forEach((btn) => {
+          btn.addEventListener("click", function () {
+              const moduleId = this.getAttribute("data-module-id");
+              openTodoModal(moduleId);
+          });
+      });
+
+      card.querySelectorAll(".start-btn").forEach((btn) => {
+          btn.addEventListener("click", function () {
+              const moduleId = this.getAttribute("data-module-id");
+              openStartSessionModal(moduleId);
+          });
+      });
+
+      return card;
+  }
+
+      function createExamSubject() {
+        const name = document.getElementById("subjectName").value;
+        const startDate = document.getElementById("startDate").value;
+        const endDate = document.getElementById("endDate").value;
+        const totalModules = document.getElementById("totalModules").value;
+
+        if (!name || !startDate || !endDate || !totalModules) {
+          alert("Please fill in all fields");
+          return;
+        }
+
+        // Format dates properly for the API
+        const startDateObj = new Date(startDate);
+        const endDateObj = new Date(endDate);
+
+        const data = {
+          name: name,
+          start_date: startDateObj.toISOString().split("T")[0], // Send only date part
+          end_date: endDateObj.toISOString().split("T")[0], // Send only date part
+          total_modules: parseInt(totalModules),
+        };
+
+        console.log("Sending data:", data); // Debug log
+
+        // Show loading state
+        const createBtn = document.getElementById("createSubjectBtn");
+        const originalText = createBtn.textContent;
+        createBtn.innerHTML =
+          '<i class="fas fa-spinner fa-spin mr-2"></i>Creating...';
+        createBtn.disabled = true;
+
+        // Submit via regular form already handled; keep client-side path for UX, but now use form POST redirect
+        fetch("/create-exam-subject", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            name: data.name,
+            start_date: data.start_date,
+            end_date: data.end_date,
+            total_modules: String(data.total_modules),
+          }).toString(),
+        })
+          .then((response) => {
+            if (response.redirected) {
+              window.location.href = response.url; // refresh to render new data
+              return;
+            }
+            if (response.ok) {
+              // Fallback: reload to fetch server-rendered subjects
+              window.location.reload();
+              return;
+            }
+            throw new Error("Failed to create subject");
+          })
+          .catch((error) => {
+            console.error("Error creating exam subject:", error);
+            alert("Error: " + error.message);
+          })
+          .finally(() => {
+            createBtn.textContent = originalText;
+            createBtn.disabled = false;
+          });
+      }
+
+      function deleteExamSubject(subjectId) {
+        if (
+          !confirm(
+            "Are you sure you want to delete this subject? This action cannot be undone."
+          )
+        ) {
+          return;
+        }
+
+        // Use POST to main route to avoid DELETE method issues
+        fetch(`/delete-exam-subject/${subjectId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({}).toString(),
+        })
+          .then((response) => {
+            if (response.redirected) {
+              window.location.href = response.url;
+              return;
+            }
+            if (response.ok) {
+              window.location.reload();
+              return;
+            }
+            throw new Error("Failed to delete exam subject");
+          })
+          .catch((error) => {
+            console.error("Error deleting exam subject:", error);
+            alert("Failed to delete exam subject. Please try again.");
+          });
+      }
+
+      function openTodoModal(moduleId) {
+        currentModuleId = moduleId;
+        const saveBtn = document.getElementById("saveModuleDurationBtn");
+        if (saveBtn && saveBtn.dataset) {
+          saveBtn.dataset.moduleId = String(moduleId);
+        }
+        // Load saved duration into input
+        const key = `exam_module_duration_${moduleId}`;
+        const saved = localStorage.getItem(key);
+        const input = document.getElementById("moduleDuration");
+        if (input) input.value = saved ? parseInt(saved, 10) : "";
+        loadTopics(moduleId);
+        openModal("moduleTodoModal");
+      }
+
+      function loadTopics(moduleId) {
+        fetch(`/api/exam-modules/${moduleId}/topics`)
+          .then((response) => response.json())
+          .then((topics) => {
+            const topicsList = document.getElementById("topicsList");
+
+            if (topics.length === 0) {
+              topicsList.innerHTML =
+                '<p class="text-gray-500 text-center py-4">No topics added yet. Add a topic below.</p>';
+              return;
+            }
+
+            topicsList.innerHTML = "";
+
+            topics.forEach((topic) => {
+              const topicElement = document.createElement("div");
+              topicElement.className = `flex justify-between items-center p-3 border-b border-gray-200 last:border-b-0 ${
+                topic.is_completed ? "bg-green-50" : ""
+              }`;
+              topicElement.innerHTML = `
+                            <div class="flex items-center">
+                                <input type="checkbox" class="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 topic-checkbox"
+                                       id="topic-${topic.id}" data-topic-id="${
+                topic.id
+              }"
+                                       ${topic.is_completed ? "checked" : ""}>
+                                <label for="topic-${
+                                  topic.id
+                                }" class="ml-3 text-sm font-medium ${
+                topic.is_completed ? "text-gray-500 line-through" : "text-gray-900"
+              }">
+                                    ${escapeHtml(topic.name)}
+                                </label>
+                            </div>
+                            <button class="text-red-500 hover:text-red-700 delete-topic" data-topic-id="${
+                              topic.id
+                            }">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        `;
+              topicsList.appendChild(topicElement);
+            });
+
+            // Add event listeners
+            document.querySelectorAll(".topic-checkbox").forEach((checkbox) => {
+              checkbox.addEventListener("change", function () {
+                const topicId = this.getAttribute("data-topic-id");
+                toggleTopicComplete(topicId);
+              });
+            });
+
+            document.querySelectorAll(".delete-topic").forEach((btn) => {
+              btn.addEventListener("click", function () {
+                const topicId = this.getAttribute("data-topic-id");
+                deleteTopic(topicId);
+              });
+            });
+          })
+          .catch((error) => {
+            console.error("Error loading topics:", error);
+            topicsList.innerHTML =
+              '<p class="text-red-500 text-center py-4">Error loading topics.</p>';
+          });
+      }
+
+      function addTopic() {
+        const nameInput = document.getElementById("topicName");
+        const name = nameInput.value.trim();
+
+        if (!name) {
+          alert("Please enter a topic name");
+          return;
+        }
+
+        fetch(`/api/exam-modules/${currentModuleId}/topics`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ name: name }),
+        })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Failed to add topic");
+            }
+            return response.json();
+          })
+          .then((topic) => {
+            nameInput.value = "";
+            loadTopics(currentModuleId);
+          })
+          .catch((error) => {
+            console.error("Error adding topic:", error);
+            alert("Failed to add topic. Please try again.");
+          });
+      }
+
+      function toggleTopicComplete(topicId) {
+        fetch(`/api/exam-topics/${topicId}/toggle-complete`, {
+          method: "POST",
+        })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Failed to update topic");
+            }
+            return response.json();
+          })
+          .then((topic) => {
+            // UI will be updated when topics are reloaded
+            loadTopics(currentModuleId);
+          })
+          .catch((error) => {
+            console.error("Error updating topic:", error);
+            alert("Failed to update topic. Please try again.");
+          });
+      }
+
+      function deleteTopic(topicId) {
+        if (!confirm("Are you sure you want to delete this topic?")) {
+          return;
+        }
+
+        fetch(`/api/exam-topics/${topicId}`, {
+          method: "DELETE",
+        })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Failed to delete topic");
+            }
+            return response.json();
+          })
+          .then((data) => {
+            loadTopics(currentModuleId);
+          })
+          .catch((error) => {
+            console.error("Error deleting topic:", error);
+            alert("Failed to delete topic. Please try again.");
+          });
+      }
+
+      function openStartSessionModal(moduleId) {
+        currentModuleId = moduleId;
+
+        // Set default end time to 1 hour from now
+        const now = new Date();
+        now.setHours(now.getHours() + 1);
+        const defaultEndTime = now.toISOString().slice(0, 16);
+        document.getElementById("sessionEndTime").value = defaultEndTime;
+
+        openModal("startSessionModal");
+      }
+
+      function startStudySession() {
+        const endTimeInput = document.getElementById("sessionEndTime").value;
+
+        if (!endTimeInput) {
+          alert("Please select an end time");
+          return;
+        }
+
+        const endTime = new Date(endTimeInput);
+        if (endTime <= new Date()) {
+          alert("End time must be in the future");
+          return;
+        }
+
+        const data = {
+          end_time: endTime.toISOString(),
+        };
+
+        fetch(`/api/exam-modules/${currentModuleId}/start-session`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
+        })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Failed to start study session");
+            }
+            return response.json();
+          })
+          .then((session) => {
+            closeModal("startSessionModal");
+
+            // Set timer
+            const sessionId = session.id;
+            const endTimeMs = new Date(session.end_time).getTime();
+
+            // Show notification
+            showNotification(
+              "Study session started! Timer has been set.",
+              "success"
+            );
+
+            // Set timer
+            setTimer(sessionId, endTimeMs);
+          })
+          .catch((error) => {
+            console.error("Error starting study session:", error);
+            alert("Failed to start study session. Please try again.");
+          });
+      }
+
+      function setTimer(sessionId, endTimeMs) {
+        // Clear any existing timer for this session
+        if (activeTimers[sessionId]) {
+          clearTimeout(activeTimers[sessionId]);
+        }
+
+        const now = Date.now();
+        const timeUntilEnd = endTimeMs - now;
+
+        if (timeUntilEnd <= 0) {
+          // Time already passed
+          showTimerAlert();
+          return;
+        }
+
+        // Set timeout for when timer ends
+        activeTimers[sessionId] = setTimeout(() => {
+          showTimerAlert();
+        }, timeUntilEnd);
+
+        console.log(
+          `Timer set for session ${sessionId}. Will trigger in ${Math.floor(
+            timeUntilEnd / 60000
+          )} minutes.`
+        );
+      }
+
+      function showTimerAlert() {
+        // Play alarm sound
+        playAlarm();
+
+        // Show alert modal
+        openModal("timerAlertModal");
+      }
+
+      // Save duration from Todo modal
+      document
+        .getElementById("saveModuleDurationBtn")
+        ?.addEventListener("click", function () {
+          const btn = document.getElementById("saveModuleDurationBtn");
+          const moduleIdAttr =
+            btn && btn.dataset ? btn.dataset.moduleId : undefined;
+          const targetModuleId =
+            currentModuleId || (moduleIdAttr ? parseInt(moduleIdAttr, 10) : null);
+          if (!targetModuleId) return;
+          const input = document.getElementById("moduleDuration");
+          const minutes = parseInt((input?.value || "").toString(), 10);
+          if (!minutes || minutes <= 0) {
+            alert("Please enter a valid number of minutes");
+            return;
+          }
+          localStorage.setItem(
+            `exam_module_duration_${targetModuleId}`,
+            String(minutes)
+          );
+          showNotification("Duration saved for this module", "success");
+        });
+
+      // Start from module Start button using saved duration
+      // Update the startModuleCountdown function - find this function and modify the part where countdown finishes
+function startModuleCountdown(moduleId) {
+    const minutesStr = localStorage.getItem(`exam_module_duration_${moduleId}`);
+    const minutes = minutesStr ? parseInt(minutesStr, 10) : 0;
+    if (!minutes || minutes <= 0) {
+        alert("Please set total study minutes in Todo first.");
+        return;
+    }
+    const endTime = Date.now() + minutes * 60 * 1000;
+    // Persist end time so countdown survives refresh
+    localStorage.setItem(`exam_module_end_${moduleId}`, String(endTime));
+
+    // Disable the start button
+    var startBtn = document.querySelector(`.start-btn[data-module-id="${moduleId}"]`);
+    if (startBtn) {
+        startBtn.disabled = true;
+        startBtn.classList.add('opacity-60', 'cursor-not-allowed');
+    }
+    // Clear prior interval if any
+    if (countdownIntervals[moduleId])
+        clearInterval(countdownIntervals[moduleId]);
+    // Update countdown display
+    const el = document.getElementById(`countdown-${moduleId}`);
+    function update() {
+        const remainingMs = endTime - Date.now();
+        if (remainingMs <= 0) {
+            if (el) el.textContent = "00:00";
+            clearInterval(countdownIntervals[moduleId]);
+            showTimerAlert();
+            // Clear persisted state and change start button to revision button
+            localStorage.removeItem(`exam_module_end_${moduleId}`);
+            var actionBtn = document.getElementById(`action-btn-${moduleId}`);
+            var btnText = document.getElementById(`btn-text-${moduleId}`);
+            if (actionBtn) {
+                actionBtn.disabled = false;
+                actionBtn.classList.remove('opacity-60', 'cursor-not-allowed');
+                actionBtn.classList.remove('bg-green-500', 'hover:bg-green-600');
+                actionBtn.classList.add('bg-purple-500', 'hover:bg-purple-600');
+                // Change to just open the modal without starting countdown
+                actionBtn.onclick = function() { 
+                    startRevisionMode(moduleId); 
+                };
+                if (btnText) {
+                    btnText.textContent = "Revision";
+                }
+            }
+            return;
+        }
+        const totalSeconds = Math.floor(remainingMs / 1000);
+        const mm = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
+        const ss = String(totalSeconds % 60).padStart(2, "0");
+        if (el) el.textContent = `${mm}:${ss}`;
+    }
+    update();
+    countdownIntervals[moduleId] = setInterval(update, 1000);
+}
+      function showTimerAlert() {
+  // Play alarm sound
+  playAlarm();
+
+  // Show alert modal
+  openModal("timerAlertModal");
+}
+
+      function playAlarm() {
+        if (alarmSound) {
+          alarmSound.play().catch((error) => {
+            console.error("Error playing alarm sound:", error);
+          });
+        }
+      }
+
+      function stopAlarm() {
+        if (alarmSound) {
+          alarmSound.pause();
+          alarmSound.currentTime = 0;
+        }
+      }
+
+      // Expose functions used by inline template renderers
+      window.deleteExamSubject = deleteExamSubject;
+      window.openTodoModal = openTodoModal;
+      window.openStartSessionModal = openStartSessionModal;
+      window.startModuleCountdown = startModuleCountdown;
+      window.startRevisionMode = startRevisionMode;
+      window.beginRevision = beginRevision;
+
+      function showNotification(message, type = "info") {
+        // Create notification element
+        const notification = document.createElement("div");
+        notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg text-white z-50 transform transition-all duration-300 ${
+          type === "success"
+            ? "bg-green-500"
+            : type === "error"
+            ? "bg-red-500"
+            : "bg-blue-500"
+        }`;
+        notification.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-${
+                      type === "success"
+                        ? "check"
+                        : type === "error"
+                        ? "exclamation-triangle"
+                        : "info"
+                    } mr-2"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+
+        document.body.appendChild(notification);
+
+        // Remove notification after 3 seconds
+        setTimeout(() => {
+          notification.style.opacity = "0";
+          notification.style.transform = "translateX(100%)";
+          setTimeout(() => {
+            document.body.removeChild(notification);
+          }, 300);
+        }, 3000);
+      }
+
+      function escapeHtml(unsafe) {
+        return unsafe
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+    });
+
+    function loadTopics(moduleId) {
+      fetch(`/api/exam-modules/${moduleId}/topics`)
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Failed to load topics");
+          }
+          return response.json();
+        })
+        .then((topics) => {
+          const topicsList = document.getElementById("topicsList");
+
+          if (topics.length === 0) {
+            topicsList.innerHTML =
+              '<p class="text-gray-500 text-center py-4">No topics added yet. Add a topic below.</p>';
+            return;
+          }
+
+          topicsList.innerHTML = "";
+
+          topics.forEach((topic) => {
+            const topicElement = document.createElement("div");
+            topicElement.className = `flex justify-between items-center p-3 border-b border-gray-200 last:border-b-0 ${
+              topic.is_completed ? "bg-green-50" : ""
+            }`;
+            topicElement.innerHTML = `
+                        <div class="flex items-center">
+                            <input type="checkbox" class="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 topic-checkbox"
+                                   id="topic-${topic.id}" data-topic-id="${
+              topic.id
+            }"
+                                   ${topic.is_completed ? "checked" : ""}>
+                            <label for="topic-${
+                              topic.id
+                            }" class="ml-3 text-sm font-medium ${
+              topic.is_completed ? "text-gray-500 line-through" : "text-gray-900"
+            }">
+                                ${escapeHtml(topic.name)}
+                            </label>
+                        </div>
+                        <button class="text-red-500 hover:text-red-700 delete-topic" data-topic-id="${
+                          topic.id
+                        }">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    `;
+            topicsList.appendChild(topicElement);
+          });
+
+          // Add event listeners
+          document.querySelectorAll(".topic-checkbox").forEach((checkbox) => {
+            checkbox.addEventListener("change", function () {
+              const topicId = this.getAttribute("data-topic-id");
+              toggleTopicComplete(topicId);
+            });
+          });
+
+          document.querySelectorAll(".delete-topic").forEach((btn) => {
+            btn.addEventListener("click", function () {
+              const topicId = this.getAttribute("data-topic-id");
+              deleteTopic(topicId);
+            });
+          });
+        })
+        .catch((error) => {
+          console.error("Error loading topics:", error);
+          topicsList.innerHTML =
+            '<p class="text-red-500 text-center py-4">Error loading topics.</p>';
+        });
+    }
+    
+    // Current module ID for exam mode
+    let currentExamModuleId = null;
+    let examCountdownInterval = null;
+    let revisionCountdownInterval = null;
+    let examAudio = new Audio('/static/sounds/alarm.mp3');
+    
+    // Function to show module topics for exam mode
+    function startExamMode(moduleId) {
+      currentExamModuleId = moduleId;
+      
+      // Load topics for the module
+      fetch(`/api/exam-modules/${moduleId}/topics`)
+        .then(response => response.json())
+        .then(topics => {
+          const topicsList = document.getElementById("examModeTopicsList");
+          
+          if (topics.length === 0) {
+            topicsList.innerHTML = '<p class="text-gray-500 text-center py-4">No topics available for this module.</p>';
+            return;
+          }
+          
+          topicsList.innerHTML = "";
+          
+          topics.forEach(topic => {
+            const topicElement = document.createElement("div");
+            topicElement.className = "flex items-center p-2";
+            topicElement.innerHTML = `
+              <input type="checkbox" id="exam-topic-${topic.id}" data-topic-id="${topic.id}" 
+                     class="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 exam-topic-checkbox">
+              <label for="exam-topic-${topic.id}" class="ml-3 text-sm font-medium text-gray-900">
+                ${escapeHtml(topic.name)}
+              </label>
+            `;
+            topicsList.appendChild(topicElement);
+          });
+          
+          // Show the exam mode modal
+          openModal("examModeModal");
+          
+          // Set up the start exam button
+          const startExamBtn = document.getElementById("startExamBtn");
+          startExamBtn.onclick = beginExam;
+        })
+        .catch(error => {
+          console.error("Error loading topics:", error);
+        });
+    }
+    
+    // Function to show module topics for revision mode
+    // Add this function to handle revision mode
+// Function to show module topics for revision mode
+function startRevisionMode(moduleId) {
+    currentExamModuleId = moduleId;
+    
+    // Load topics for the module
+    fetch(`/api/exam-modules/${moduleId}/topics`)
+        .then(response => response.json())
+        .then(topics => {
+            const topicsList = document.getElementById("revisionTopicsList");
+            
+            if (topics.length === 0) {
+                topicsList.innerHTML = '<p class="text-gray-500 text-center py-4">No topics available for this module.</p>';
+                return;
+            }
+            
+            topicsList.innerHTML = "";
+            
+            topics.forEach(topic => {
+                const topicElement = document.createElement("div");
+                topicElement.className = "flex items-center p-2";
+                topicElement.innerHTML = `
+                    <input type="checkbox" id="revision-topic-${topic.id}" data-topic-id="${topic.id}" 
+                           class="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 revision-topic-checkbox">
+                    <label for="revision-topic-${topic.id}" class="ml-3 text-sm font-medium text-gray-900">
+                        ${escapeHtml(topic.name)}
+                    </label>
+                `;
+                topicsList.appendChild(topicElement);
+            });
+            
+            // Reset the revision countdown display
+            const revisionCountdownDisplay = document.getElementById("revisionCountdownDisplay");
+            if (revisionCountdownDisplay) {
+                revisionCountdownDisplay.textContent = "Enter minutes and click Start Revision";
+                revisionCountdownDisplay.className = "text-center text-gray-600 font-medium py-3";
+            }
+            
+            // Reset the duration input
+            const durationInput = document.getElementById("revisionDuration");
+            if (durationInput) {
+                durationInput.value = "15";
+            }
+            
+            // Show the revision mode modal
+            openModal("revisionModeModal");
+            
+        })
+        .catch(error => {
+            console.error("Error loading topics:", error);
+        });
+}
+
+// Function to begin the revision countdown
+function beginRevision() {
+    const durationInput = document.getElementById("revisionDuration");
+    const minutes = parseInt(durationInput.value);
+    
+    if (!minutes || minutes <= 0) {
+        alert("Please enter a valid duration in minutes");
+        return;
+    }
+    
+    // Calculate end time
+    const endTime = Date.now() + (minutes * 60 * 1000);
+    
+    // Clear any existing interval for this module
+    if (revisionCountdownIntervals && revisionCountdownIntervals[currentExamModuleId]) {
+        clearInterval(revisionCountdownIntervals[currentExamModuleId]);
+    }
+    
+    // Get the countdown display element inside the modal
+    const revisionCountdownDisplay = document.getElementById("revisionCountdownDisplay");
+    
+    // Disable the start button and duration input during countdown
+    const startRevisionBtn = document.getElementById("startRevisionBtn");
+    if (startRevisionBtn) {
+        startRevisionBtn.disabled = true;
+        startRevisionBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        startRevisionBtn.textContent = "Revision in Progress...";
+    }
+    
+    if (durationInput) {
+        durationInput.disabled = true;
+    }
+    
+    // Update countdown display
+    function updateRevisionCountdown() {
+        const remainingMs = endTime - Date.now();
+        
+        if (remainingMs <= 0) {
+            // Revision time's up
+            clearInterval(revisionCountdownIntervals[currentExamModuleId]);
+            
+            // Show completion message in countdown display
+            if (revisionCountdownDisplay) {
+                revisionCountdownDisplay.textContent = "Revision Completed!";
+                revisionCountdownDisplay.className = "text-center text-green-600 font-bold py-3 text-lg";
+            }
+            
+            // Play alarm sound
+            playAlarm();
+            
+            // Show completion modal with topic count after a short delay
+            setTimeout(() => {
+                closeModal("revisionModeModal");
+                showRevisionCompletion();
+            }, 2000);
+            
+            return;
+        }
+        
+        const totalSeconds = Math.floor(remainingMs / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        
+        // Update countdown display in the modal
+        if (revisionCountdownDisplay) {
+            revisionCountdownDisplay.textContent = `Time Remaining: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+            revisionCountdownDisplay.className = "text-center text-purple-600 font-bold py-3 text-lg";
+        }
+    }
+    
+    // Initialize revision countdown intervals object if it doesn't exist
+    if (!window.revisionCountdownIntervals) {
+        window.revisionCountdownIntervals = {};
+    }
+    
+    // Initial update
+    updateRevisionCountdown();
+    
+    // Start interval and store reference
+    revisionCountdownIntervals[currentExamModuleId] = setInterval(updateRevisionCountdown, 1000);
+}
+
+// Function to begin the revision countdown
+// Function to begin the revision countdown
+function beginRevision() {
+    const durationInput = document.getElementById("revisionDuration");
+    const minutes = parseInt(durationInput.value);
+    
+    if (!minutes || minutes <= 0) {
+        alert("Please enter a valid duration in minutes");
+        return;
+    }
+    
+    // Close the revision mode modal
+    closeModal("revisionModeModal");
+    
+    // Calculate end time
+    const endTime = Date.now() + (minutes * 60 * 1000);
+    
+    // Clear any existing interval for this module
+    if (revisionCountdownIntervals && revisionCountdownIntervals[currentExamModuleId]) {
+        clearInterval(revisionCountdownIntervals[currentExamModuleId]);
+    }
+    
+    // Create or update the revision countdown display
+    const countdownElement = document.getElementById(`countdown-${currentExamModuleId}`);
+    const originalContent = countdownElement ? countdownElement.textContent : '';
+    
+    // Store original state to restore later
+    if (countdownElement && !countdownElement.dataset.originalContent) {
+        countdownElement.dataset.originalContent = originalContent;
+    }
+    
+    // Update countdown display
+    function updateRevisionCountdown() {
+        const remainingMs = endTime - Date.now();
+        
+        if (remainingMs <= 0) {
+            // Revision time's up
+            clearInterval(revisionCountdownIntervals[currentExamModuleId]);
+            
+            // Show completion message in countdown element
+            if (countdownElement) {
+                countdownElement.textContent = "Revision Done!";
+                countdownElement.className = "text-xs text-green-500 font-medium";
+            }
+            
+            // Play alarm sound
+            playAlarm();
+            
+            // Show completion modal with topic count
+            showRevisionCompletion();
+            return;
+        }
+        
+        const totalSeconds = Math.floor(remainingMs / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        
+        // Update countdown display with revision prefix
+        if (countdownElement) {
+            countdownElement.textContent = `Rev: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+            countdownElement.className = "text-xs text-purple-600 font-medium";
+        }
+    }
+    
+    // Initialize revision countdown intervals object if it doesn't exist
+    if (!window.revisionCountdownIntervals) {
+        window.revisionCountdownIntervals = {};
+    }
+    
+    // Initial update
+    updateRevisionCountdown();
+    
+    // Start interval and store reference
+    revisionCountdownIntervals[currentExamModuleId] = setInterval(updateRevisionCountdown, 1000);
+}
+
+// Function to show revision completion modal
+// Function to show revision completion modal
+function showRevisionCompletion() {
+    // Count checked topics
+    const checkedTopics = document.querySelectorAll('.revision-topic-checkbox:checked').length;
+    const totalTopics = document.querySelectorAll('.revision-topic-checkbox').length;
+    
+    // Update completion message
+    document.getElementById('revisionCompletionCount').textContent = `${checkedTopics}/${totalTopics}`;
+    
+    // Show completion modal
+    openModal('revisionCompletionModal');
+    
+    // Clean up the revision countdown interval
+    if (revisionCountdownIntervals && revisionCountdownIntervals[currentExamModuleId]) {
+        clearInterval(revisionCountdownIntervals[currentExamModuleId]);
+        delete revisionCountdownIntervals[currentExamModuleId];
+    }
+    
+    // Restore original countdown display after a delay
+    setTimeout(() => {
+        const countdownElement = document.getElementById(`countdown-${currentExamModuleId}`);
+        if (countdownElement && countdownElement.dataset.originalContent) {
+            countdownElement.textContent = countdownElement.dataset.originalContent;
+            countdownElement.className = "text-xs text-gray-500";
+            delete countdownElement.dataset.originalContent;
+        } else if (countdownElement) {
+            // If no original content, just clear it
+            countdownElement.textContent = "";
+        }
+    }, 3000); // Wait 3 seconds before restoring
+    
+    // Update module status to completed
+    fetch(`/api/exam-modules/${currentExamModuleId}/complete`, {
+        method: 'POST'
+    }).catch(error => {
+        console.error('Error updating module status:', error);
+    });
+}
+    
+    // Function to begin the revision countdown
+    function beginRevision() {
+      const durationInput = document.getElementById("revisionDuration");
+      const minutes = parseInt(durationInput.value);
+      
+      if (!minutes || minutes <= 0) {
+        alert("Please enter a valid duration in minutes");
+        return;
+      }
+      
+      // Close the revision mode modal
+      closeModal("revisionModeModal");
+      
+      // Calculate end time
+      const endTime = Date.now() + (minutes * 60 * 1000);
+      
+      // Clear any existing interval
+      if (revisionCountdownInterval) {
+        clearInterval(revisionCountdownInterval);
+      }
+      
+      // Create a countdown display element
+      const moduleElement = document.querySelector(`[data-module-id="${currentExamModuleId}"]`).closest('.flex');
+      let countdownDisplay = moduleElement.querySelector('.revision-countdown');
+      
+      if (!countdownDisplay) {
+        countdownDisplay = document.createElement('span');
+        countdownDisplay.className = 'revision-countdown ml-2 text-xs font-medium text-purple-600';
+        moduleElement.appendChild(countdownDisplay);
+      }
+      
+      // Update countdown display
+      function updateCountdown() {
+        const remainingMs = endTime - Date.now();
+        
+        if (remainingMs <= 0) {
+          clearInterval(revisionCountdownInterval);
+          countdownDisplay.textContent = "Completed!";
+          
+          // Play alarm sound
+          playAlarm();
+          
+          // Show completion modal with topic count
+          showRevisionCompletion();
+          return;
+        }
+        
+        const totalSeconds = Math.floor(remainingMs / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        
+        countdownDisplay.textContent = `Revision: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+      }
+      
+      // Initial update
+      updateCountdown();
+      
+      // Start interval
+      revisionCountdownInterval = setInterval(updateCountdown, 1000);
+    }
+    
+    // Function to show revision completion modal
+    function showRevisionCompletion() {
+      // Count checked topics
+      const checkedTopics = document.querySelectorAll('.revision-topic-checkbox:checked').length;
+      const totalTopics = document.querySelectorAll('.revision-topic-checkbox').length;
+      
+      // Update completion message
+      document.getElementById('revisionCompletionCount').textContent = `${checkedTopics}/${totalTopics}`;
+      
+      // Show completion modal
+      openModal('revisionCompletionModal');
+      
+      // Update module status to completed
+      fetch(`/api/exam-modules/${currentExamModuleId}/complete`, {
+        method: 'POST'
+      }).catch(error => {
+        console.error('Error updating module status:', error);
+      });
+    }
+    function beginExam() {
+      // Get the exam duration from input
+      const durationInput = document.getElementById("examDuration");
+      const durationMinutes = parseInt(durationInput.value, 10);
+      
+      if (isNaN(durationMinutes) || durationMinutes < 1) {
+        showNotification("Please enter a valid duration in minutes", "error");
+        return;
+      }
+      
+      // Close the exam mode modal
+      closeModal("examModeModal");
+      
+      // Get selected topics
+      const selectedTopics = [];
+      document.querySelectorAll(".exam-topic-checkbox:checked").forEach(checkbox => {
+        selectedTopics.push(checkbox.getAttribute("data-topic-id"));
+      });
+      
+      // Calculate end time
+      const endTime = new Date();
+      endTime.setMinutes(endTime.getMinutes() + durationMinutes);
+      
+      // Create countdown element if it doesn't exist
+      let countdownElement = document.getElementById("exam-countdown");
+      if (!countdownElement) {
+        countdownElement = document.createElement("div");
+        countdownElement.id = "exam-countdown";
+        countdownElement.className = "fixed top-4 right-4 bg-purple-600 text-white px-4 py-2 rounded-lg shadow-lg z-50";
+        document.body.appendChild(countdownElement);
+      }
+      
+      // Start countdown
+      if (examCountdownInterval) {
+        clearInterval(examCountdownInterval);
+      }
+      
+      examCountdownInterval = setInterval(() => {
+        const now = new Date();
+        const diff = endTime - now;
+        
+        if (diff <= 0) {
+          // Time's up
+          clearInterval(examCountdownInterval);
+          countdownElement.remove();
+          examAudio.play();
+          
+          // Show completion modal
+          const totalTopics = document.querySelectorAll(".exam-topic-checkbox").length;
+          const revisedTopics = selectedTopics.length;
+          document.getElementById("topicsRevisedCount").textContent = `${revisedTopics}/${totalTopics}`;
+          openModal("examCompletionModal");
+          
+          // Update module countdown to show completion
+          const moduleCountdown = document.getElementById(`countdown-${currentExamModuleId}`);
+          if (moduleCountdown) {
+            moduleCountdown.textContent = "Completed";
+            moduleCountdown.className = "text-xs text-green-500 font-medium";
+          }
+        } else {
+          // Update countdown
+          const minutes = Math.floor(diff / 60000);
+          const seconds = Math.floor((diff % 60000) / 1000);
+          countdownElement.textContent = `Exam Time: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+      }, 1000);
+    }
+    
+    // Function to open modal
+    function openModal(modalId) {
+      const modal = document.getElementById(modalId);
+      if (modal) {
+        modal.classList.remove("hidden");
+      }
+    }
+    
+    // Function to close modal
+    function closeModal(modalId) {
+      const modal = document.getElementById(modalId);
+      if (modal) {
+        modal.classList.add("hidden");
+      }
+    }
+    
+    // Function to show module todo
+    function showModuleTodo(moduleId) {
+      currentModuleId = moduleId;
+      openTodoModal(moduleId);
+    }
+
+    // Function to close revision modal and clean up
+function closeRevisionModal() {
+    // Clear any running revision countdown
+    if (revisionCountdownIntervals && revisionCountdownIntervals[currentExamModuleId]) {
+        clearInterval(revisionCountdownIntervals[currentExamModuleId]);
+        delete revisionCountdownIntervals[currentExamModuleId];
+    }
+    
+    // Close the modal
+    closeModal("revisionModeModal");
+    
+    // Reset the start revision button state
+    const startRevisionBtn = document.getElementById("startRevisionBtn");
+    if (startRevisionBtn) {
+        startRevisionBtn.disabled = false;
+        startRevisionBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        startRevisionBtn.textContent = "Start Revision";
+    }
+    
+    // Reset the duration input
+    const durationInput = document.getElementById("revisionDuration");
+    if (durationInput) {
+        durationInput.disabled = false;
+    }
+}
+</script>
+
+    <!-- Exam Mode Time Input Modal -->
+    <div id="examModeModal" class="modal hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div class="p-6">
+                <h3 class="text-xl font-semibold text-gray-900 mb-4">Start Exam Mode</h3>
+                <div id="examModeTopicsList" class="mb-4 max-h-60 overflow-y-auto border border-gray-200 rounded-md p-3">
+                    <!-- Topics with checkboxes will be loaded here -->
+                </div>
+                <div class="mb-4">
+                    <label for="examDuration" class="block text-sm font-medium text-gray-700 mb-1">Exam Duration (minutes)</label>
+                    <input type="number" id="examDuration" min="1" value="30" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                <div class="flex justify-end gap-2">
+                    <button type="button" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors" onclick="closeModal('examModeModal')">Cancel</button>
+                    <button type="button" id="startExamBtn" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors" onclick="beginExam()">Start Exam</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    
+    
+<!-- Revision Mode Modal -->
+<div id="revisionModeModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full transform transition-all">
+        <div class="bg-purple-600 text-white px-6 py-5 rounded-t-3xl">
+            <div class="flex items-center justify-between">
+                <h5 class="text-xl font-bold">Revision Mode</h5>
+                <button type="button" class="text-white hover:text-gray-200 text-2xl" onclick="closeRevisionModal()">
+                    <span>&times;</span>
+                </button>
+            </div>
+        </div>
+        <div class="p-6">
+            <!-- Revision Countdown Display -->
+            <div id="revisionCountdownDisplay" class="text-center text-gray-600 font-medium py-3">
+                Enter minutes and click Start Revision
+            </div>
+            
+            <div id="revisionTopicsList" class="mb-4 max-h-60 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                <!-- Topics will be loaded here -->
+            </div>
+            <div class="mb-4">
+                <label for="revisionDuration" class="block text-gray-700 font-semibold mb-2">Revision Duration (minutes)</label>
+                <input type="number" id="revisionDuration" min="1" value="15" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-200 transition-all outline-none">
+            </div>
+            <div class="flex gap-3 justify-end">
+                <button type="button" class="px-6 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold rounded-xl transition-all" onclick="closeRevisionModal()">
+                    Cancel
+                </button>
+                <button type="button" id="startRevisionBtn" class="bg-purple-600 text-white px-6 py-2 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all">
+                    Start Revision
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Revision Completion Modal -->
+<div id="revisionCompletionModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full transform transition-all">
+        <div class="bg-green-600 text-white px-6 py-5 rounded-t-3xl">
+            <div class="flex items-center justify-between">
+                <h5 class="text-xl font-bold">Revision Completed!</h5>
+            </div>
+        </div>
+        <div class="p-6 text-center">
+            <div class="mb-4">
+                <i class="fas fa-check-circle text-green-500 text-4xl mb-4"></i>
+                <p class="text-gray-700 text-lg font-semibold">
+                    You revised <span id="revisionCompletionCount" class="text-purple-600">0/0</span> topics
+                </p>
+            </div>
+            <button type="button" class="bg-green-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all w-full" onclick="closeModal('revisionCompletionModal')">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+    
+    <!-- Revision Completion Modal -->
+    
+               
+            </div>
+        </div>
+    </div>
+{% endblock %} {% block scripts %}{% endblock %}

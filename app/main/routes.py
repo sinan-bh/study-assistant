@@ -2,11 +2,102 @@ from flask import render_template, redirect, url_for, request, jsonify, send_fro
 from flask_login import current_user, login_required
 from app import db
 from app.main import bp
-from app.models import User, Subject, StudySession, Topic, ExamMode, Quiz, QuizQuestion, QuizOption, AdminChat
+from app.models import User, Subject, StudySession, Topic, Quiz, QuizQuestion, QuizOption, AdminChat, ExamSubject, ExamModule, ExamTopic, ExamStudySession
 import random
 import os
 from sqlalchemy import func, distinct
 from datetime import datetime, timedelta
+
+# Exam Mode route
+@bp.route('/exam-mode')
+@login_required
+def exam_mode():
+    # Load exam subjects with modules and topics for current user (server-rendered, no API)
+    exam_subjects = ExamSubject.query.filter_by(user_id=current_user.id, is_active=True).all()
+
+    def serialize_exam_topic(et: ExamTopic):
+        return {
+            'id': et.id,
+            'name': et.name,
+            'description': et.description,
+            'is_completed': et.is_completed
+        }
+
+    def serialize_exam_module(em: ExamModule):
+        return {
+            'id': em.id,
+            'module_number': em.module_number,
+            'topics': [serialize_exam_topic(t) for t in em.topics.all()]
+        }
+
+    def serialize_exam_subject(es: ExamSubject):
+        return {
+            'id': es.id,
+            'name': es.name,
+            'start_date': es.start_date.isoformat() if es.start_date else None,
+            'end_date': es.end_date.isoformat() if es.end_date else None,
+            'total_modules': es.total_modules,
+            'is_active': es.is_active,
+            'modules': [serialize_exam_module(m) for m in es.modules.all()]
+        }
+
+    exam_subjects_payload = [serialize_exam_subject(es) for es in exam_subjects]
+
+    return render_template('main/exam_mode.html', exam_subjects=exam_subjects_payload)
+
+@bp.route('/create-exam-subject', methods=['POST'])
+@login_required
+def create_exam_subject():
+    name = request.form.get('name')
+    start_date = datetime.strptime(request.form.get('start_date'), '%Y-%m-%d') if request.form.get('start_date') else None
+    end_date = datetime.strptime(request.form.get('end_date'), '%Y-%m-%d') if request.form.get('end_date') else None
+    total_modules = int(request.form.get('total_modules', 1))
+    
+    if not name:
+        flash('Subject name is required', 'error')
+        return redirect(url_for('main.exam_mode'))
+    if not start_date or not end_date:
+        flash('Start date and end date are required', 'error')
+        return redirect(url_for('main.exam_mode'))
+    if total_modules < 1:
+        flash('Total modules must be at least 1', 'error')
+        return redirect(url_for('main.exam_mode'))
+    
+    # Create exam subject
+    es = ExamSubject(
+        name=name,
+        start_date=start_date,
+        end_date=end_date,
+        total_modules=total_modules,
+        user_id=current_user.id,
+        is_active=True
+    )
+    db.session.add(es)
+    db.session.flush()  # Get the ID without committing
+    
+    # Create modules
+    for i in range(1, total_modules + 1):
+        em = ExamModule(
+            module_number=i,
+            exam_subject_id=es.id
+        )
+        db.session.add(em)
+    
+    db.session.commit()
+    flash('Exam subject created successfully', 'success')
+    return redirect(url_for('main.exam_mode'))
+
+@bp.route('/delete-exam-subject/<int:subject_id>', methods=['POST', 'DELETE'])
+@login_required
+def delete_exam_subject_main(subject_id: int):
+    subject = ExamSubject.query.filter_by(id=subject_id, user_id=current_user.id).first_or_404()
+    db.session.delete(subject)
+    db.session.commit()
+    # If form POST, redirect; if DELETE (fetch), return JSON
+    if request.method == 'POST':
+        flash('Exam subject deleted successfully', 'success')
+        return redirect(url_for('main.exam_mode'))
+    return jsonify({'success': True})
 
 # Get list of users with chat messages
 @bp.route('/chat-users')

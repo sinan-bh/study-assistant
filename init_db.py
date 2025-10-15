@@ -5,7 +5,7 @@ Run this script to create the database and tables
 """
 
 from app import create_app, db
-from app.models import User, Subject, Topic, StudySession, ExamMode
+from app.models import User, Subject, Topic, StudySession, ExamSubject, ExamModule
 
 def init_db():
     """Initialize the database with tables"""

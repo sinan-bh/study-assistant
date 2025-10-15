@@ -1,9 +1,12 @@
 from flask import render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from app import db
-from app.models import User, AdminChat
+from app.models import User, AdminChat, ExamSubject, ExamModule, ExamTopic
 from app.admin import bp
 from functools import wraps
+from datetime import datetime, timedelta
+from sqlalchemy import func
+import json
 
 def admin_required(f):
     @wraps(f)
@@ -13,6 +16,159 @@ def admin_required(f):
             return redirect(url_for('main.index'))
         return f(*args, **kwargs)
     return decorated_function
+    
+@bp.route('/module-completion')
+@login_required
+@admin_required
+def module_completion():
+    users = User.query.all()
+    return render_template('admin/module_completion.html', users=users)
+
+@bp.route('/api/admin/subjects')
+@login_required
+@admin_required
+def get_subjects():
+    user_id = request.args.get('user_id', '')
+    
+    query = ExamSubject.query
+    if user_id:
+        # Filter subjects that have modules with study sessions by this user
+        query = query.join(ExamModule).join(ExamModule.study_sessions).filter(
+            ExamModule.study_sessions.any(user_id=user_id)
+        ).distinct()
+    
+    subjects = query.all()
+    return jsonify([{
+        'id': subject.id,
+        'name': subject.name
+    } for subject in subjects])
+
+@bp.route('/api/admin/module-completion')
+@login_required
+@admin_required
+def get_module_completion():
+    user_id = request.args.get('user_id', '')
+    subject_id = request.args.get('subject_id', '')
+    status = request.args.get('status', '')
+    
+    # Base query for subjects
+    subjects_query = ExamSubject.query
+    
+    # Apply filters
+    if subject_id:
+        subjects_query = subjects_query.filter(ExamSubject.id == subject_id)
+    
+    subjects = subjects_query.all()
+    result = []
+    
+    for subject in subjects:
+        modules_query = ExamModule.query.filter(ExamModule.subject_id == subject.id)
+        
+        # Get all modules for this subject
+        modules = modules_query.all()
+        
+        # Process modules to include completion data
+        processed_modules = []
+        completed_modules_count = 0
+        
+        for module in modules:
+            # Get topics for this module
+            topics = ExamTopic.query.filter(ExamTopic.exam_module_id == module.id).all()
+            total_topics = len(topics)
+            
+            # If filtering by user, check which topics they've completed
+            completed_topics = 0
+            if user_id:
+                # Get study sessions for this user and module
+                user_sessions = ExamStudySession.query.filter(
+                    ExamStudySession.user_id == user_id,
+                    ExamStudySession.exam_module_id == module.id
+                ).all()
+                
+                # If user has study sessions for this module, count completed topics
+                if user_sessions:
+                    completed_topics = ExamTopic.query.filter(
+                        ExamTopic.exam_module_id == module.id,
+                        ExamTopic.is_completed == True
+                    ).count()
+            else:
+                completed_topics = ExamTopic.query.filter(
+                    ExamTopic.exam_module_id == module.id,
+                    ExamTopic.is_completed == True
+                ).count()
+            
+            # Check if module is fully completed
+            is_completed = (completed_topics == total_topics and total_topics > 0)
+            
+            # Apply completion status filter if specified
+            if status == 'completed' and not is_completed:
+                continue
+            elif status == 'incomplete' and is_completed:
+                continue
+                
+            if is_completed:
+                completed_modules_count += 1
+                
+            processed_modules.append({
+                'id': module.id,
+                'module_number': module.module_number,
+                'completed_topics': completed_topics,
+                'total_topics': total_topics,
+                'is_completed': is_completed
+            })
+        
+        # Skip subjects with no modules after filtering
+        if not processed_modules:
+            continue
+            
+        result.append({
+            'id': subject.id,
+            'name': subject.name,
+            'completed_modules': completed_modules_count,
+            'total_modules': len(modules),
+            'modules': processed_modules
+        })
+    
+    return jsonify(result)
+
+@bp.route('/api/admin/module-topics/<int:module_id>')
+@login_required
+@admin_required
+def get_module_topics(module_id):
+    user_id = request.args.get('user_id', '')
+    
+    topics = ExamTopic.query.filter(ExamTopic.exam_module_id == module_id).all()
+    result = []
+    
+    for topic in topics:
+        topic_data = {
+            'id': topic.id,
+            'name': topic.name,
+            'description': topic.description,
+            'is_completed': topic.is_completed
+        }
+        
+        # Add user information if user_id is provided
+        if user_id:
+            # Check if this user has study sessions for this topic's module
+            user_sessions = ExamStudySession.query.filter(
+                ExamStudySession.user_id == user_id,
+                ExamStudySession.exam_module_id == module_id
+            ).first()
+            
+            if user_sessions:
+                # Get user details
+                user = User.query.get(user_id)
+                if user:
+                    topic_data['user'] = {
+                        'id': user.id,
+                        'username': user.username,
+                        'email': user.email
+                    }
+        
+        result.append(topic_data)
+    
+    return jsonify(result)
 
 @bp.route('/dashboard')
 @login_required

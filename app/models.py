@@ -269,18 +269,67 @@ class StudySession(db.Model):
     
     def __repr__(self):
         return f'<StudySession {self.id}>'
-        
-    
 
-class ExamMode(db.Model):
-    __tablename__ = 'exam_modes'
+class ExamSubject(db.Model):
+    __tablename__ = 'exam_subjects'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    start_date = db.Column(db.DateTime, nullable=False)
+    end_date = db.Column(db.DateTime, nullable=False)
+    total_modules = db.Column(db.Integer, default=1)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_active = db.Column(db.Boolean, default=True)
+    
+    # Relationships
+    modules = db.relationship('ExamModule', backref='exam_subject', lazy='dynamic', cascade='all, delete-orphan')
+    user = db.relationship('User', backref=db.backref('exam_subjects', lazy='dynamic'))
+    
+    def __repr__(self):
+        return f'<ExamSubject {self.name}>'
+
+class ExamModule(db.Model):
+    __tablename__ = 'exam_modules'
+    id = db.Column(db.Integer, primary_key=True)
+    module_number = db.Column(db.Integer, nullable=False)
+    exam_subject_id = db.Column(db.Integer, db.ForeignKey('exam_subjects.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Add unique constraint to prevent duplicate module numbers within the same exam subject
+    __table_args__ = (
+        db.UniqueConstraint('module_number', 'exam_subject_id', name='uix_module_number_exam_subject'),
+    )
+    
+    # Relationships
+    topics = db.relationship('ExamTopic', backref='exam_module', lazy='dynamic', cascade='all, delete-orphan')
+    study_sessions = db.relationship('ExamStudySession', backref='exam_module', lazy='dynamic', cascade='all, delete-orphan')
+    
+    def __repr__(self):
+        return f'<ExamModule {self.module_number}>'
+
+class ExamTopic(db.Model):
+    __tablename__ = 'exam_topics'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)
+    exam_module_id = db.Column(db.Integer, db.ForeignKey('exam_modules.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_completed = db.Column(db.Boolean, default=False)
+    
+    def __repr__(self):
+        return f'<ExamTopic {self.name}>'
+
+class ExamStudySession(db.Model):
+    __tablename__ = 'exam_study_sessions'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id'), nullable=False)
-    exam_date = db.Column(db.DateTime, nullable=False)
-    is_active = db.Column(db.Boolean, default=True)
+    exam_module_id = db.Column(db.Integer, db.ForeignKey('exam_modules.id'), nullable=False)
+    start_time = db.Column(db.DateTime, nullable=False)
+    end_time = db.Column(db.DateTime)
+    actual_duration_minutes = db.Column(db.Integer)
+    notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def __repr__(self):
-        return f'<ExamMode {self.id}>'
+        return f'<ExamStudySession {self.id}>'
 
