@@ -351,26 +351,35 @@ def dashboard():
         db.session.commit()
 
     today = datetime.today().date()
-    # Filter subjects to only show those created today
+    # All active subjects for stats and pie chart
     subjects = Subject.query.filter(
         Subject.user_id == current_user.id,
+        Subject.is_active == True
+    ).all()
+
+    # Only subjects created today for the activity list
+    subjects_today = Subject.query.filter(
+        Subject.user_id == current_user.id,
         Subject.is_active == True,
-        db.func.date(Subject.created_at) == today
+        func.date(Subject.created_at) == today
     ).all()
     recent_sessions = StudySession.query.filter_by(user_id=current_user.id)\
         .order_by(StudySession.start_time.desc()).limit(5).all()
 
-    # Stats
-    active_subjects_count = len(subjects)
+    # Stats (restrict counts and duration to subjects created today)
+    # Finished IDs (for frontend flags) still computed from all subjects finished today
     finished_subject_ids = [s.id for s in subjects if (s.finished_at and s.finished_at.date() == today)]
-    completed_subjects_count = len(finished_subject_ids)
+
+    active_subjects_count = len(subjects_today)
+    completed_subjects_count = sum(1 for s in subjects_today if (s.finished_at and s.finished_at.date() == today))
     pending_subjects_count = max(active_subjects_count - completed_subjects_count, 0)
-    # Today's Total Study Time (as total scheduled subject duration)
+
+    # Today's Total Activity Time: sum durations for today's-created subjects only
     def minutes_between(start_h:int, start_m:int, end_h:int, end_m:int) -> int:
         return max((end_h * 60 + end_m) - (start_h * 60 + start_m), 0)
     total_scheduled_minutes = sum(
         minutes_between(s.start_hour or 0, s.start_minute or 0, s.end_hour or 0, s.end_minute or 0)
-        for s in subjects
+        for s in subjects_today
     )
 
     now = datetime.now()
@@ -387,6 +396,7 @@ def dashboard():
     return render_template('main/dashboard.html', 
                          title='Dashboard',
                          subjects=subjects,
+                         subjects_today=subjects_today,
                          recent_sessions=recent_sessions,
                          total_scheduled_minutes=total_scheduled_minutes,
                          active_subjects_count=active_subjects_count,
@@ -619,8 +629,7 @@ def delete_subject(subject_id):
     try:
         # Delete dependents
         StudySession.query.filter_by(user_id=current_user.id, subject_id=subject.id).delete(synchronize_session=False)
-        ExamMode.query.filter_by(user_id=current_user.id, subject_id=subject.id).delete(synchronize_session=False)
-        # Topics will be deleted by cascade too; explicit bulk delete is optional, but keep safe:
+        # Topics will be deleted by cascade (delete-orphan). Explicit delete to be safe.
         Topic.query.filter_by(subject_id=subject.id).delete(synchronize_session=False)
         db.session.delete(subject)
         db.session.commit()

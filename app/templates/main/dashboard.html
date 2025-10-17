@@ -56,7 +56,7 @@
     <div class="bg-blue-600 text-white rounded-lg shadow-lg p-6">
       <div class="flex justify-between items-center">
         <div>
-          <p class="text-blue-100 text-sm font-medium">Today's Total Activity Time</p>
+          <p class="text-blue-100 text-sm font-medium">Total Activity Time</p>
           <p class="text-3xl font-bold">{{ total_scheduled_minutes }} min</p>
         </div>
         <div class="bg-blue-500 rounded-full p-3">
@@ -66,6 +66,16 @@
     </div>
 
     
+  </div>
+
+  <!-- Activity Summary Chart -->
+  <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-xl font-semibold text-gray-900">Activity Summary</h2>
+    </div>
+    <div class="max-w-sm">
+      <canvas id="activityPieChart"></canvas>
+    </div>
   </div>
 
   <!-- Main Content Grid -->
@@ -79,8 +89,9 @@
         </button>
       </div>
       <div class="space-y-4">
-        {% if subjects %}
-          {% for subject in subjects %}
+        {% set list_subjects = subjects_today if subjects_today is defined else subjects %}
+        {% if list_subjects %}
+          {% for subject in list_subjects %}
             <div class="py-2 border-b subject-card " id="subject-{{ subject.id }}">
               <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-3">
@@ -119,7 +130,7 @@
           {% endfor %}
         {% else %}
           <div class="py-8 text-center">
-            <div class="text-gray-500 mb-4">No activities created today</div>
+            <div class="text-gray-500 mb-4">No activities created yet</div>
             <button id="addSubjectBtn" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
               <i class="fas fa-plus mr-2"></i>Add New Activity
             </button>
@@ -191,8 +202,8 @@
   </div>
 
   <!-- Modals -->
-  <div id="editSubjectModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden">
-    <div class="bg-white rounded-lg shadow-lg w-full max-w-sm p-6">
+  <div id="editSubjectModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden" onclick="closeEditSubject()">
+    <div class="bg-white rounded-lg shadow-lg w-full max-w-sm p-6" onclick="event.stopPropagation()">
       <h3 class="text-lg font-semibold mb-4">Edit Subject</h3>
       <form id="editSubjectForm">
         <input type="hidden" name="subject_id" id="editSubjectId">
@@ -248,6 +259,15 @@
   <audio id="reminderAudio" src="{{ url_for('main.get_reminder_song') }}" preload="auto"></audio>
 
   <script>
+    // Load Chart.js
+    (function loadChartJs(){
+      if (!window.Chart) {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
+        s.async = true;
+        document.head.appendChild(s);
+      }
+    })();
     // Modal open/close
     document.getElementById('openAddSubject').onclick = function () {
       document.getElementById('addSubjectModal').classList.remove('hidden')
@@ -312,7 +332,7 @@
       document.getElementById('addSubjectModal').classList.add('hidden')
     }
     
-    // Build subjects array with end times
+    // Build subjects array with end times (use all subjects for pie chart/stats)
     const subjects = [
       {% for subject in subjects %}
         {
@@ -384,6 +404,40 @@
       setInterval(checkReminder, 60000); // every minute
       checkReminder(); // on page load
     }
+
+    // Render Activity Summary Pie Chart
+    (function renderActivityPieWhenReady(){
+      function tryRender(){
+        if (!window.Chart) { setTimeout(tryRender, 80); return; }
+        const ctx = document.getElementById('activityPieChart');
+        if (!ctx) return;
+        const finished = subjects.filter(s => s && s.finished_today).length;
+        const unfinished = Math.max(0, subjects.length - finished);
+        const data = {
+          labels: ['Finished', 'Unfinished'],
+          datasets: [{
+            data: [finished, unfinished],
+            backgroundColor: ['#16a34a', '#ef4444'], // green-600, red-500
+            borderWidth: 0
+          }]
+        };
+        new Chart(ctx, {
+          type: 'pie',
+          data,
+          options: {
+            responsive: true,
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: { usePointStyle: true }
+              },
+              tooltip: { enabled: true }
+            }
+          }
+        });
+      }
+      tryRender();
+    })();
 
     // Break toggle logic
     const breakToggle = document.getElementById('breakToggle');
@@ -725,27 +779,78 @@
     // Extra time removed
 
     window.openEditSubject = function(id, name) {
-      console.log('openEditSubject', id, name)
-      document.getElementById('editSubjectId').value = id;
-      document.getElementById('editSubjectName').value = name;
-      document.getElementById('editSubjectModal').classList.remove('hidden');
+      console.log('openEditSubject called with:', id, name);
+      try {
+        const modal = document.getElementById('editSubjectModal');
+        const idField = document.getElementById('editSubjectId');
+        const nameField = document.getElementById('editSubjectName');
+        
+        if (!modal || !idField || !nameField) {
+          console.error('Modal elements not found');
+          alert('Edit modal not found');
+          return;
+        }
+        
+        idField.value = id;
+        nameField.value = name;
+        modal.classList.remove('hidden');
+        console.log('Modal opened successfully');
+      } catch (error) {
+        console.error('Error opening edit modal:', error);
+        alert('Error opening edit form');
+      }
     }
     function closeEditSubject() {
       document.getElementById('editSubjectModal').classList.add('hidden');
     }
-    document.getElementById('editSubjectForm').onsubmit = async function(e) {
-      e.preventDefault();
-      const id = document.getElementById('editSubjectId').value;
-      const name = document.getElementById('editSubjectName').value;
-      const res = await fetch(`/subject/${id}/edit`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({name})
-      });
-      if (res.ok) {
-        location.reload();
+    // Edit subject form handler - attach after DOM is ready
+    function attachEditFormHandler() {
+      const editForm = document.getElementById('editSubjectForm');
+      if (editForm) {
+        console.log('Attaching edit form handler');
+        editForm.onsubmit = async function(e) {
+          e.preventDefault();
+          console.log('Edit form submitted');
+          const id = document.getElementById('editSubjectId').value;
+          const name = document.getElementById('editSubjectName').value;
+          console.log('Form data:', {id, name});
+          
+          if (!id || !name) {
+            alert('Please fill in all fields');
+            return;
+          }
+          try {
+            console.log('Sending edit request...');
+            const res = await fetch(`/subject/${id}/edit`, {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({name})
+            });
+            console.log('Edit response:', res.status);
+            if (res.ok) {
+              console.log('Edit successful, reloading page');
+              location.reload();
+            } else {
+              const errorText = await res.text();
+              console.error('Edit failed:', errorText);
+              alert('Failed to update subject: ' + errorText);
+            }
+          } catch (error) {
+            console.error('Edit error:', error);
+            alert('Error updating subject: ' + error.message);
+          }
+        };
+      } else {
+        console.error('Edit form not found');
       }
-    };
+    }
+    
+    // Attach the handler when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', attachEditFormHandler);
+    } else {
+      attachEditFormHandler();
+    }
 
     
 
